@@ -40,12 +40,15 @@
     </publications>
     <dependencies>
     
-		<dependency org="org.slf4j" name="slf4j-api" 
-			rev="1.7.6" conf="compile->default(*)" />
+		<dependency org="org.slf4j" name="slf4j-api" rev="1.7.6" 
+            conf="compile->default(*)" />
 		
-        <dependency org="org.jocean" name="jocean-idiom" 
-            rev="0.0.6" conf="compile->default(*)" />
+        <dependency org="org.jocean" name="jocean-idiom" rev="0.0.8-SNAPSHOT" 
+            conf="compile->default(*)" changing="true"/>
 					
+        <dependency org="org.jocean" name="simpleimage-lite" rev="0.0.1-SNAPSHOT" 
+            conf="compile->default(*)" changing="true"/>
+        
         <dependency org="com.google.android" name="android" 
             rev="2.3.3" conf="compile->default(*)" transitive="false"/>
         
