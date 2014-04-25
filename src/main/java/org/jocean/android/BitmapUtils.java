@@ -34,7 +34,7 @@ public class BitmapUtils {
         return opts.outMimeType;
     }
     
-    public static Bitmap decodeStreamByMimeType(final InputStream is, final String mimeType) 
+    public static BitmapHolder decodeStreamByMimeType(final InputStream is, final String mimeType) 
         throws Exception {
         if (  mimeType.equals("image/jpeg") ) {
             LOG.info("using simpleimage.JPEGDecoder");
@@ -42,7 +42,8 @@ public class BitmapUtils {
             final JPEGDecoder decoder = new JPEGDecoder(new ImageBitsInputStream(is));
             final Triple<Integer, Integer, int[]> rawimg = decoder.decode();
             if ( null != rawimg ) {
-                return Bitmap.createBitmap(rawimg.getThird(), rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888);
+                return new DefaultBitmapHolder(
+                        Bitmap.createBitmap(rawimg.getThird(), rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888));
             }
             else {
                 LOG.warn("simpleimage.JPEGDecoder failed.");
@@ -52,8 +53,7 @@ public class BitmapUtils {
         else {
             LOG.info("using BitmapFactory.decodeStream");
             
-            return BitmapFactory.decodeStream(is);
+            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
         }
     }
-    
 }

@@ -44,7 +44,7 @@
             conf="compile->default(*)" />
 		
         <dependency org="org.jocean" name="jocean-idiom" rev="0.0.8-SNAPSHOT" 
-            conf="compile->default(*)" changing="true"/>
+            conf="compile->default(*)" changing="true" />
 					
         <dependency org="org.jocean" name="simpleimage-lite" rev="0.0.1-SNAPSHOT" 
             conf="compile->default(*)" changing="true"/>
