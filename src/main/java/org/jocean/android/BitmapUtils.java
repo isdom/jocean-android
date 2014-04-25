@@ -58,15 +58,14 @@ public class BitmapUtils {
                 LOG.warn("exception when using simpleimage-lite to decode jpeg, detail: {}", 
                         ExceptionUtils.exception2detail(e));
             }
-        }
-        
-        LOG.info("try using BitmapFactory.decodeStream");
-        
-        if ( null == opts ) {
-            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
+            return null;
         }
         else {
-            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is, null, opts));
+            LOG.info("try using BitmapFactory.decodeStream");
+            
+            final Bitmap bitmap = ( null == opts ? BitmapFactory.decodeStream(is) 
+                    : BitmapFactory.decodeStream(is, null, opts));
+            return (null != bitmap ? new DefaultBitmapHolder(bitmap) : null);
         }
     }
 }
