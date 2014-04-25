@@ -5,6 +5,7 @@ package org.jocean.android;
 
 import java.io.InputStream;
 
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,26 +46,27 @@ public class BitmapUtils {
         if (  mimeType.equals("image/jpeg") ) {
             LOG.info("using simpleimage.JPEGDecoder");
             
-            final JPEGDecoder decoder = new JPEGDecoder(new ImageBitsInputStream(is));
-            final Triple<Integer, Integer, int[]> rawimg = decoder.decode();
-            if ( null != rawimg ) {
-                return new DefaultBitmapHolder(
-                        Bitmap.createBitmap(rawimg.getThird(), rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888));
+            try {
+                final JPEGDecoder decoder = new JPEGDecoder(new ImageBitsInputStream(is));
+                final Triple<Integer, Integer, int[]> rawimg = decoder.decode();
+                if ( null != rawimg ) {
+                    return new DefaultBitmapHolder(
+                            Bitmap.createBitmap(rawimg.getThird(), rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888));
+                }
             }
-            else {
-                LOG.warn("simpleimage.JPEGDecoder failed.");
-                return null;
+            catch (Exception e) {
+                LOG.warn("exception when using simpleimage-lite to decode jpeg, detail: {}", 
+                        ExceptionUtils.exception2detail(e));
             }
         }
+        
+        LOG.info("try using BitmapFactory.decodeStream");
+        
+        if ( null == opts ) {
+            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
+        }
         else {
-            LOG.info("using BitmapFactory.decodeStream");
-            
-            if ( null == opts ) {
-                return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
-            }
-            else {
-                return new DefaultBitmapHolder(BitmapFactory.decodeStream(is, null, opts));
-            }
+            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is, null, opts));
         }
     }
 }
