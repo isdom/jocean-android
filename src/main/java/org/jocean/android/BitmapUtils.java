@@ -36,6 +36,12 @@ public class BitmapUtils {
     
     public static BitmapHolder decodeStreamByMimeType(final InputStream is, final String mimeType) 
         throws Exception {
+        return decodeStreamByMimeType(is, mimeType, null);
+    }
+    
+    public static BitmapHolder decodeStreamByMimeType(final InputStream is, final String mimeType, 
+            final BitmapFactory.Options opts) 
+        throws Exception {
         if (  mimeType.equals("image/jpeg") ) {
             LOG.info("using simpleimage.JPEGDecoder");
             
@@ -53,7 +59,12 @@ public class BitmapUtils {
         else {
             LOG.info("using BitmapFactory.decodeStream");
             
-            return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
+            if ( null == opts ) {
+                return new DefaultBitmapHolder(BitmapFactory.decodeStream(is));
+            }
+            else {
+                return new DefaultBitmapHolder(BitmapFactory.decodeStream(is, null, opts));
+            }
         }
     }
 }
