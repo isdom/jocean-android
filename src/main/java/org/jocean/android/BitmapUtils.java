@@ -35,6 +35,11 @@ public class BitmapUtils {
         return opts.outMimeType;
     }
     
+    public static BitmapHolder decodeStream(final InputStream is) 
+            throws Exception {
+        return decodeStream(is, null);
+    }
+        
     public static BitmapHolder decodeStream(final InputStream is, final BitmapFactory.Options opts) 
         throws Exception {
         if ( !is.markSupported() ) {
