@@ -41,15 +41,14 @@ public class BitmapUtils {
         final IntsPool intsPool;
     }
     
-    public static RawImageDrawable decodeStreamAsRawImage(final Context ctx, final InputStream is) 
+    public static RawImage decodeStreamAsRawImage(final Context ctx, final InputStream is) 
             throws Exception {
         final JPEGDecoder decoder = new JPEGDecoder(ctx.bytesPool, new ImageBitsInputStream(is));
         final Triple<Integer, Integer, IntsBlob> raw = decoder.decode(ctx.intsPool);
         if ( null != raw ) {
             try {
-                final RawImageDrawable drawable = 
-                        new RawImageDrawable(new RawImage(raw.getFirst(), raw.getSecond(), raw.getThird()));
-                return drawable;
+                final RawImage img = new RawImage(raw.getFirst(), raw.getSecond(), raw.getThird());
+                return img;
             }
             finally {
                 raw.getThird().release();

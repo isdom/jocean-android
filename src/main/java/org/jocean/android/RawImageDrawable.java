@@ -15,7 +15,11 @@ import android.graphics.drawable.Drawable;
 public class RawImageDrawable extends Drawable {
 
     public RawImageDrawable(final RawImage rawimg) {
-        this._img = rawimg;
+        this._img = rawimg.retain();
+    }
+    
+    public void recycle() {
+        this._img.release();
     }
 
 //    public void setTargetDensity(DisplayMetrics metrics) {

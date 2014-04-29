@@ -1,5 +1,6 @@
 package org.jocean.android;
 
+import org.jocean.idiom.AbstractReferenceCounted;
 import org.jocean.idiom.block.IntsBlob;
 import org.jocean.idiom.block.RandomAccessInts;
 
@@ -7,7 +8,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 
-public class RawImage {
+public class RawImage extends AbstractReferenceCounted<RawImage> {
     public RawImage(final int w, final int h, final IntsBlob ints) {
         this._width = w;
         this._height = h;
@@ -123,7 +124,7 @@ public class RawImage {
     /**
      * @param canvas
      */
-    public void drawDirect(final Canvas canvas) {
+    public void drawDirect(final Canvas canvas, final int left, int top) {
         int currentx = 0;
         int currenty = 0;
         
@@ -145,7 +146,7 @@ public class RawImage {
                 // draw top
                 w = Math.min(this._width - currentx, restLength);
                 h = 1;
-                canvas.drawBitmap(colors, currentoffset, this._width, currentx, currenty, w, h, false, null);
+                canvas.drawBitmap(colors, currentoffset, this._width, left + currentx, top + currenty, w, h, false, null);
                 currentoffset += w;
                 restLength -= w;
                 currentx += w;
@@ -159,7 +160,7 @@ public class RawImage {
                 // draw body
                 w = Math.min(this._width, restLength);
                 h = restLength / w;
-                canvas.drawBitmap(colors, currentoffset, this._width, currentx, currenty, w, h, false, null);
+                canvas.drawBitmap(colors, currentoffset, this._width, left + currentx, top + currenty, w, h, false, null);
                 currentoffset += w * h;
                 restLength -= w * h;
                 if ( h > 1 ) {
@@ -180,7 +181,7 @@ public class RawImage {
                 // draw bottom
                 w = restLength;
                 h = 1;
-                canvas.drawBitmap(colors, currentoffset, this._width, currentx, currenty, w, h, false, null);
+                canvas.drawBitmap(colors, currentoffset, this._width, left + currentx, top + currenty, w, h, false, null);
                 currentx += w;
                 if ( currentx == this._width ) {
                     // 递进到下一row
@@ -189,6 +190,11 @@ public class RawImage {
                 }
             }
         }
+    }
+    
+    @Override
+    protected void deallocate() {
+        _ints.release();
     }
     
     private final int _width;
