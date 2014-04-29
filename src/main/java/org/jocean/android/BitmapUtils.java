@@ -86,12 +86,17 @@ public class BitmapUtils {
                     final Bitmap bitmap = 
                             Bitmap.createBitmap(rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888);
                     final ReadableInts ints = IntsBlob.Utils.releaseAndGenReadable(rawimg.getThird());
-                    for ( int y = 0; y < rawimg.getSecond(); y++) {
-                        for ( int x = 0; x < rawimg.getFirst(); x++) {
-                            bitmap.setPixel(x, y, ints.read());
+                    try {
+                        for ( int y = 0; y < rawimg.getSecond(); y++) {
+                            for ( int x = 0; x < rawimg.getFirst(); x++) {
+                                bitmap.setPixel(x, y, ints.read());
+                            }
                         }
+                        return new DefaultBitmapHolder(bitmap);
                     }
-                    return new DefaultBitmapHolder(bitmap);
+                    finally {
+                        ints.close();
+                    }
                 }
             }
             catch (Exception e) {
