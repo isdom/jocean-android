@@ -5,6 +5,7 @@ package org.jocean.android;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
 /**
@@ -18,8 +19,13 @@ public class RawImageDrawable extends Drawable {
     }
     
     @Override
+    protected void onBoundsChange(final Rect bounds) {
+        this._bounds.set(bounds);
+    }
+
+    @Override
     public void draw(final Canvas canvas) {
-        this._img.draw(canvas);
+        this._img.drawScale(canvas, this._bounds);
     }
 
     @Override
@@ -41,4 +47,5 @@ public class RawImageDrawable extends Drawable {
     }
 
     private final RawImage _img;
+    private final Rect _bounds = new Rect();
 }
