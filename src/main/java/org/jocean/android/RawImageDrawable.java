@@ -17,6 +17,16 @@ public class RawImageDrawable extends Drawable {
     public RawImageDrawable(final RawImage rawimg) {
         this._img = rawimg;
     }
+
+//    public void setTargetDensity(DisplayMetrics metrics) {
+//         mTargetDensity = metrics.densityDpi;
+//         computeBitmapSize();
+//    }
+//    
+//    private void computeBitmapSize() {
+//        this._width = mBitmap.getScaledWidth(mTargetDensity);
+//        this._height = mBitmap.getScaledHeight(mTargetDensity);
+//   }
     
     @Override
     protected void onBoundsChange(final Rect bounds) {
@@ -45,7 +55,21 @@ public class RawImageDrawable extends Drawable {
         // TODO Auto-generated method stub
         return 0;
     }
+    
+    
+    @Override
+    public int getIntrinsicWidth() {
+        return this._img.getWidth(); //this._width;
+    }
+
+    @Override
+    public int getIntrinsicHeight() {
+        return this._img.getHeight(); //this._height;
+    }
 
     private final RawImage _img;
     private final Rect _bounds = new Rect();
+//    private int _width;
+//    private int _height;
+//    private int mTargetDensity;
 }

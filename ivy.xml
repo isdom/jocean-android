@@ -40,6 +40,8 @@
     </publications>
     <dependencies>
     
+        <dependency org="com.mortennobel" name="java-image-scaling" rev="0.8.5"/>
+        
 		<dependency org="org.slf4j" name="slf4j-api" rev="1.7.6" 
             conf="compile->default(*)" />
 		
