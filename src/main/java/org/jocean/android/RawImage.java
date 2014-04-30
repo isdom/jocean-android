@@ -1,6 +1,11 @@
 package org.jocean.android;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jocean.idiom.AbstractReferenceCounted;
+import org.jocean.idiom.Propertyable;
 import org.jocean.idiom.block.BlockUtils;
 import org.jocean.idiom.block.IntsBlob;
 import org.jocean.idiom.block.RandomAccessInts;
@@ -9,11 +14,27 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 
-public class RawImage extends AbstractReferenceCounted<RawImage> {
+public class RawImage extends AbstractReferenceCounted<RawImage> 
+    implements Propertyable {
     public RawImage(final int w, final int h, final IntsBlob ints) {
         this._width = w;
         this._height = h;
         this._ints = ints.retain();
+    }
+    
+    @Override
+    public <T> T getProperty(final String key) {
+        return (T)this._properties.get(key);
+    }
+
+    @Override
+    public <T> void setProperty(final String key, T obj) {
+        this._properties.put(key, obj);
+    }
+
+    @Override
+    public Map<String, Object> getProperties() {
+        return Collections.unmodifiableMap(this._properties);
     }
     
     public int getSizeInByte() {
@@ -73,6 +94,7 @@ public class RawImage extends AbstractReferenceCounted<RawImage> {
         
         final RawImage scaled = new RawImage(w, h, ints);
         ints.release();
+        scaled._properties.putAll(this.getProperties());
         return scaled;
     }
 
@@ -250,4 +272,5 @@ public class RawImage extends AbstractReferenceCounted<RawImage> {
     private final int _height;
     private final IntsBlob _ints;
     private final Paint _paint = new Paint();
+    private final Map<String, Object> _properties = new HashMap<String, Object>();
 }

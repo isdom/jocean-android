@@ -21,6 +21,10 @@ public class RawImageDrawable extends Drawable {
     public void recycle() {
         this._img.release();
     }
+    
+    public RawImage rawImage() {
+        return this._img;
+    }
 
 //    public void setTargetDensity(DisplayMetrics metrics) {
 //         mTargetDensity = metrics.densityDpi;
