@@ -1,6 +1,7 @@
 package org.jocean.android;
 
 import org.jocean.idiom.AbstractReferenceCounted;
+import org.jocean.idiom.block.BlockUtils;
 import org.jocean.idiom.block.IntsBlob;
 import org.jocean.idiom.block.RandomAccessInts;
 
@@ -25,6 +26,50 @@ public class RawImage extends AbstractReferenceCounted<RawImage> {
 
     public int getHeight() {
         return this._height;
+    }
+    
+    public RawImage createScaleImage(final int w, final int h) {
+        final IntsBlob ints = BlockUtils.createIntsBlob(w * h, this._ints.pool());
+        
+        boolean interpolate = true; // 插值模式   
+        final int dstWidth = w;
+        final int dstHeight = h;
+        final int roiWidth = this._width;   
+        final int roiHeight = this._height;
+        final int width = roiWidth;   
+        double srcCenterX = roiWidth / 2.0;   
+        double srcCenterY = roiHeight / 2.0;   
+        double dstCenterX = dstWidth / 2.0;   
+        double dstCenterY = dstHeight / 2.0;   
+        double xScale = (double) dstWidth / roiWidth;   
+        double yScale = (double) dstHeight / roiHeight;   
+   
+        double xlimit = width - 1.0, xlimit2 = width - 1.001;   
+   
+        if (interpolate) {   
+            dstCenterX += xScale / 2.0;   
+            dstCenterY += yScale / 2.0;   
+        }   
+   
+        double xs, ys;   
+        for (int y = 0; y <= dstHeight - 1; y++) {   
+            ys = (y - dstCenterY) / yScale + srcCenterY;   
+   
+            for (int x = 0; x <= dstWidth - 1; x++) {   
+                xs = (x - dstCenterX) / xScale + srcCenterX;   
+                if (interpolate) {   
+                    if (xs < 0.0)   
+                        xs = 0.0;   
+                    if (xs >= xlimit)   
+                        xs = xlimit2; 
+                    ints.writeAt(x + y*w, getInterpolatedPixel(xs, ys, width, this._ints));
+                }   
+            }   
+        }
+        
+        final RawImage scaled = new RawImage(w, h, ints);
+        ints.release();
+        return scaled;
     }
 
     public void drawScale(final Canvas canvas, final Rect bounds) {
@@ -194,7 +239,7 @@ public class RawImage extends AbstractReferenceCounted<RawImage> {
     
     @Override
     protected void deallocate() {
-        _ints.release();
+        this._ints.release();
     }
     
     private final int _width;
