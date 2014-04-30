@@ -71,8 +71,8 @@ public class RawImageDrawable extends Drawable {
         return this._img.getHeight(); //this._height;
     }
 
-    private final RawImage _img;
-    private final Rect _bounds = new Rect();
+    protected final RawImage _img;
+    protected final Rect _bounds = new Rect();
 //    private int _width;
 //    private int _height;
 //    private int mTargetDensity;
