@@ -39,11 +39,21 @@ public class RawImageDrawable extends Drawable {
     @Override
     protected void onBoundsChange(final Rect bounds) {
         this._bounds.set(bounds);
+        this._sx = (float)bounds.width() / this._img.getWidth();
+        this._sy = (float)bounds.height() / this._img.getHeight();
     }
 
     @Override
     public void draw(final Canvas canvas) {
-        this._img.drawScale(canvas, this._bounds);
+        canvas.save();
+        
+        try {
+            canvas.scale(this._sx, this._sy, this._bounds.left, this._bounds.top);
+            this._img.drawDirect(canvas, this._bounds.left, this._bounds.top);
+        }
+        finally {
+            canvas.restore();
+        }
     }
 
     @Override
@@ -77,6 +87,9 @@ public class RawImageDrawable extends Drawable {
 
     protected final RawImage _img;
     protected final Rect _bounds = new Rect();
+    protected float _sx = 1.0f;
+    protected float _sy = 1.0f;
+
 //    private int _width;
 //    private int _height;
 //    private int mTargetDensity;
