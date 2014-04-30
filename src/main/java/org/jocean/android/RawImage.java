@@ -28,6 +28,10 @@ public class RawImage extends AbstractReferenceCounted<RawImage> {
         return this._height;
     }
     
+    public RawImage createScaleImage(final float scaleRatio) {
+        return createScaleImage( (int)(this._width * scaleRatio), (int)(this._height * scaleRatio));
+    }
+    
     public RawImage createScaleImage(final int w, final int h) {
         final IntsBlob ints = BlockUtils.createIntsBlob(w * h, this._ints.pool());
         
