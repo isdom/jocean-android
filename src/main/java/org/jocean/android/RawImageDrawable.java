@@ -3,6 +3,7 @@
  */
 package org.jocean.android;
 
+import org.jocean.idiom.Detachable;
 import org.jocean.image.RawImage;
 import org.jocean.image.RawImage.PixelArrayDrawer;
 
@@ -15,7 +16,8 @@ import android.graphics.drawable.Drawable;
  * @author isdom
  *
  */
-public class RawImageDrawable extends Drawable {
+public class RawImageDrawable extends Drawable 
+    implements Detachable {
 
     private static final PixelArrayDrawer<Canvas> _DRAWER = new PixelArrayDrawer<Canvas>() {
 
@@ -31,10 +33,11 @@ public class RawImageDrawable extends Drawable {
         this._img = rawimg.retain();
     }
     
-    public void recycle() {
+    @Override
+    public void detach() throws Exception {
         this._img.release();
     }
-    
+
     public RawImage rawImage() {
         return this._img;
     }
