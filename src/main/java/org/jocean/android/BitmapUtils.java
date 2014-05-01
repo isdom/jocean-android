@@ -5,21 +5,13 @@ package org.jocean.android;
 
 import java.io.InputStream;
 
-import org.jocean.idiom.ExceptionUtils;
-import org.jocean.idiom.Triple;
-import org.jocean.idiom.block.IntsBlob;
-import org.jocean.idiom.block.ReadableInts;
 import org.jocean.idiom.pool.BytesPool;
 import org.jocean.idiom.pool.IntsPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
-
-import com.alibaba.simpleimage.codec.jpeg.JPEGDecoder;
-import com.alibaba.simpleimage.io.ImageBitsInputStream;
 
 /**
  * @author isdom
@@ -39,23 +31,6 @@ public class BitmapUtils {
         
         final BytesPool bytesPool;
         final IntsPool intsPool;
-    }
-    
-    public static RawImage decodeStreamAsRawImage(final Context ctx, final InputStream is) 
-            throws Exception {
-        final JPEGDecoder decoder = new JPEGDecoder(ctx.bytesPool, new ImageBitsInputStream(is));
-        final Triple<Integer, Integer, IntsBlob> raw = decoder.decode(ctx.intsPool);
-        if ( null != raw ) {
-            try {
-                final RawImage img = new RawImage(raw.getFirst(), raw.getSecond(), raw.getThird());
-                return img;
-            }
-            finally {
-                raw.getThird().release();
-            }
-        }
-        
-        return null;
     }
     
     public static String parseImageMimeType(final InputStream is) throws Exception {
@@ -93,16 +68,17 @@ public class BitmapUtils {
     public static BitmapHolder decodeStreamByMimeType(final Context ctx, final InputStream is, final String mimeType, 
             final BitmapFactory.Options opts) 
         throws Exception {
+        /*
         if (  mimeType.equals("image/jpeg") ) {
             LOG.info("using simpleimage.JPEGDecoder");
             
             try {
                 final JPEGDecoder decoder = new JPEGDecoder(ctx.bytesPool, new ImageBitsInputStream(is));
-                final Triple<Integer, Integer, IntsBlob> rawimg = decoder.decode(ctx.intsPool);
+                final RawImage rawimg = decoder.decode(ctx.intsPool);
                 if ( null != rawimg ) {
                     final Bitmap bitmap = 
-                            Bitmap.createBitmap(rawimg.getFirst(), rawimg.getSecond(), Config.ARGB_8888);
-                    final ReadableInts ints = IntsBlob.Utils.releaseAndGenReadable(rawimg.getThird());
+                            Bitmap.createBitmap(rawimg.getWidth(), rawimg.getHeight(), Config.ARGB_8888);
+                    final ReadableInts ints = IntsBlob.Utils.releaseAndGenReadable(rawimg.);
                     try {
                         for ( int y = 0; y < rawimg.getSecond(); y++) {
                             for ( int x = 0; x < rawimg.getFirst(); x++) {
@@ -122,7 +98,7 @@ public class BitmapUtils {
             }
             return null;
         }
-        else {
+        else*/ {
             LOG.info("try using BitmapFactory.decodeStream");
             
             final Bitmap bitmap = ( null == opts ? BitmapFactory.decodeStream(is) 

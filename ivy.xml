@@ -51,6 +51,9 @@
         <dependency org="org.jocean" name="simpleimage-lite" rev="0.0.1-SNAPSHOT" 
             conf="compile->default(*)" changing="true"/>
         
+        <dependency org="org.jocean" name="jocean-image" rev="0.0.1-SNAPSHOT" 
+            conf="compile->default(*)" changing="true"/>
+        
         <dependency org="ar.com.hjg" name="pngj" rev="2.0.1" 
             conf="compile->default(*)"/>
         

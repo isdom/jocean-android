@@ -3,6 +3,9 @@
  */
 package org.jocean.android;
 
+import org.jocean.image.RawImage;
+import org.jocean.image.RawImage.PixelArrayDrawer;
+
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Rect;
@@ -14,6 +17,16 @@ import android.graphics.drawable.Drawable;
  */
 public class RawImageDrawable extends Drawable {
 
+    private static final PixelArrayDrawer<Canvas> _DRAWER = new PixelArrayDrawer<Canvas>() {
+
+        @Override
+        public void drawPixelArray(Canvas canvas, int[] colors, int offset,
+                int stride, float x, float y, int width, int height,
+                boolean hasAlpha) {
+            canvas.drawBitmap(colors, offset, stride, x, y, width, height, hasAlpha, null);
+        }
+    };
+    
     public RawImageDrawable(final RawImage rawimg) {
         this._img = rawimg.retain();
     }
@@ -49,7 +62,7 @@ public class RawImageDrawable extends Drawable {
         
         try {
             canvas.scale(this._sx, this._sy, this._bounds.left, this._bounds.top);
-            this._img.drawDirect(canvas, this._bounds.left, this._bounds.top);
+            this._img.drawDirect(_DRAWER, canvas, this._bounds.left, this._bounds.top);
         }
         finally {
             canvas.restore();
