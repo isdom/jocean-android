@@ -61,14 +61,14 @@ public class RawImageDrawable extends Drawable
 
     @Override
     public void draw(final Canvas canvas) {
-        canvas.save();
+        final int saveCount = canvas.save();
         
         try {
             canvas.scale(this._sx, this._sy, this._bounds.left, this._bounds.top);
             this._img.drawDirect(_DRAWER, canvas, this._bounds.left, this._bounds.top);
         }
         finally {
-            canvas.restore();
+            canvas.restoreToCount(saveCount);
         }
     }
 
