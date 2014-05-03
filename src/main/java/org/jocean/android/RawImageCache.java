@@ -89,6 +89,9 @@ public final class RawImageCache<KEY>  {
                         final RawImage img = RawImage.decodeFrom(is);
                         if ( null != img ) {
                             try {
+                                if ( LOG.isTraceEnabled() ) {
+                                    LOG.trace("tryLoadFromDisk: load RawImage({}) from disk for key({})", img, key);
+                                }
                                 return put(key, img);
                             }
                             finally {
