@@ -60,5 +60,8 @@
         <dependency org="com.google.android" name="android" rev="2.3.3" 
             conf="compile->default(*)" transitive="false"/>
         
-	</dependencies>
+        <dependency org="com.google.android" name="support-v4" rev="r7" 
+            conf="compile->default(*)" />
+        
+     </dependencies>
 </ivy-module>
