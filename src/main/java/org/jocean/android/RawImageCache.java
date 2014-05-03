@@ -28,9 +28,11 @@ public final class RawImageCache<KEY>  {
                     final RawImage newValue) {
                 super.entryRemoved(evicted, key, oldValue, newValue);
                 if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("entryRemoved key:{} and release oldValue:{}", key, oldValue);
+                    LOG.trace("entryRemoved key:{} and release oldValue:{}, and now totalSize is ({})KBytes", 
+                            key, oldValue, size() / 1024.0f);
                 }
                 oldValue.release();
+               
             }
 
             @Override
