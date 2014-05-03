@@ -4,6 +4,8 @@
 package org.jocean.android;
 
 import org.jocean.image.RawImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import android.support.v4.util.LruCache;
 
@@ -12,6 +14,9 @@ import android.support.v4.util.LruCache;
  * 
  */
 public final class RawImageCache<KEY>  {
+    
+    private static final Logger LOG = 
+            LoggerFactory.getLogger(RawImageCache.class);
     
     public RawImageCache(final int maxSize) {
         this._impl = new LruCache<KEY, RawImage>(maxSize) {
@@ -22,6 +27,9 @@ public final class RawImageCache<KEY>  {
                     final RawImage oldValue,
                     final RawImage newValue) {
                 super.entryRemoved(evicted, key, oldValue, newValue);
+                if ( LOG.isTraceEnabled() ) {
+                    LOG.trace("entryRemoved key:{} and release oldValue:{}", key, oldValue);
+                }
                 oldValue.release();
             }
 
