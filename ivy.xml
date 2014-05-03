@@ -40,28 +40,30 @@
     </publications>
     <dependencies>
     
-        <dependency org="com.mortennobel" name="java-image-scaling" rev="0.8.5"/>
-        
+<!--         <dependency org="com.mortennobel" name="java-image-scaling" rev="0.8.5"/>
+ -->        
 		<dependency org="org.slf4j" name="slf4j-api" rev="1.7.6" 
             conf="compile->default(*)" />
 		
         <dependency org="org.jocean" name="jocean-idiom" rev="0.0.8-SNAPSHOT" 
             conf="compile->default(*)" changing="true"/>
 					
-        <dependency org="org.jocean" name="simpleimage-lite" rev="0.0.1-SNAPSHOT" 
+<!--         <dependency org="org.jocean" name="simpleimage-lite" rev="0.0.1-SNAPSHOT" 
             conf="compile->default(*)" changing="true"/>
-        
+ -->        
         <dependency org="org.jocean" name="jocean-image" rev="0.0.1-SNAPSHOT" 
-            conf="compile->default(*)" changing="true"/>
+            conf="compile->default(*)" changing="true" transitive="false"/>
         
-        <dependency org="ar.com.hjg" name="pngj" rev="2.0.1" 
+<!--         <dependency org="ar.com.hjg" name="pngj" rev="2.0.1" 
             conf="compile->default(*)"/>
-        
+ -->        
         <dependency org="com.google.android" name="android" rev="2.3.3" 
             conf="compile->default(*)" transitive="false"/>
         
         <dependency org="com.google.android" name="support-v4" rev="r7" 
             conf="compile->default(*)" />
+
+        <dependency org="com.jakewharton" name="disklrucache" rev="2.0.2" />
         
      </dependencies>
 </ivy-module>
