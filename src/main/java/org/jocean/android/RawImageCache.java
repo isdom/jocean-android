@@ -11,24 +11,38 @@ import android.support.v4.util.LruCache;
  * @author isdom
  * 
  */
-public class RawImageCache extends LruCache<String, RawImage> {
+public final class RawImageCache<KEY>  {
     
     public RawImageCache(final int maxSize) {
-        super(maxSize);
+        this._impl = new LruCache<KEY, RawImage>(maxSize) {
+            @Override
+            protected void entryRemoved(
+                    final boolean evicted, 
+                    final KEY key, 
+                    final RawImage oldValue,
+                    final RawImage newValue) {
+                super.entryRemoved(evicted, key, oldValue, newValue);
+                oldValue.release();
+            }
+
+            @Override
+            protected int sizeOf(final KEY key, final RawImage img) {
+                return img.getSizeInByte();
+            }
+        };
+    }
+    
+    public RawImage put( final KEY key, final RawImage image) {
+        return this._impl.put(key, image.retain());
+    }
+    
+    public RawImage get(final KEY key) {
+        return this._impl.get(key);
     }
 
-    @Override
-    protected void entryRemoved(
-            final boolean evicted, 
-            final String key, 
-            final RawImage oldValue,
-            final RawImage newValue) {
-        super.entryRemoved(evicted, key, oldValue, newValue);
-        oldValue.release();
+    public void remove(final KEY key) {
+        this._impl.remove(key);
     }
-
-    @Override
-    protected int sizeOf(final String key, final RawImage img) {
-        return img.getSizeInByte();
-    }
+    
+    private final LruCache<KEY, RawImage> _impl;
 }
