@@ -125,12 +125,16 @@ public class BitmapUtils {
             }
             final Rect rect = new Rect();
             final List<ImageBlock> blocks = new ArrayList<ImageBlock>();
-            for ( int hidx = 0; hidx < decoder.getHeight(); hidx += BLOCK_H) {
-                for ( int widx = 0; widx < decoder.getWidth(); widx += BLOCK_W) {
-                    rect.set(widx, hidx, widx + BLOCK_W, hidx + BLOCK_H);
+            for ( int yidx = 0; yidx < decoder.getHeight(); yidx += BLOCK_H) {
+                final int h = Math.min(BLOCK_H, decoder.getHeight() - yidx);
+                
+                for ( int xidx = 0; xidx < decoder.getWidth(); xidx += BLOCK_W) {
+                    final int w = Math.min(BLOCK_W, decoder.getWidth() - xidx);
+                    
+                    rect.set(xidx, yidx, xidx + w, yidx + h);
                     final Bitmap bitmap = decoder.decodeRegion(rect, null);
                     if ( null != bitmap ) {
-                        blocks.add(new ImageBlock(widx, hidx, BLOCK_W, BLOCK_H, bitmap));
+                        blocks.add(new ImageBlock(xidx, yidx, w, h, bitmap));
                     }
                 }
             }
