@@ -37,7 +37,7 @@ public final class RawImageCache<KEY>  {
                     final RawImage newValue) {
                 super.entryRemoved(evicted, key, oldValue, newValue);
                 if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("entryRemoved key:{}/newValue:{}, release oldValue:{}, now totalSize:({})KBytes", 
+                    LOG.trace("entryRemoved key:{}/newValue:{},\r\n release oldValue:{},\r\n now totalSize:({})KBytes", 
                             key, newValue, oldValue, size() / 1024.0f);
                 }
                 try {
