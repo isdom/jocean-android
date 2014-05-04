@@ -45,6 +45,10 @@ public class BitmapBlock {
         return this._bitmap;
     }
     
+    public int sizeInBytes() {
+        return  this._bitmap.getRowBytes() * this._bitmap.getHeight();
+    }
+    
     public void draw(final Canvas canvas, final int left, int top, final Paint paint) {
         this._dest.set(this._left + left, this._top + top, 
                 this._left + left + this._width, this._top + top + this._height);

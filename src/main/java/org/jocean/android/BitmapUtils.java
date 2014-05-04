@@ -6,6 +6,7 @@ package org.jocean.android;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.jocean.android.pool.BitmapsPool;
 import org.jocean.idiom.ReferenceCounted;
@@ -113,8 +114,8 @@ public class BitmapUtils {
         }
     }
     
-    public static BitmapBlocksDrawable decodeStreamAsBlocks(
-            final BitmapsPool pool, final InputStream is) {
+    public static CompositeBitmap decodeStreamAsBlocks(
+            final BitmapsPool pool, final InputStream is, final Map<String, Object> props) {
         final List<Ref<BitmapBlock>> blocks = new ArrayList<Ref<BitmapBlock>>();
         
         try {
@@ -151,7 +152,7 @@ public class BitmapUtils {
                 bitmap.recycle();
             }
             
-            return new BitmapBlocksDrawable(bitmap.getWidth(), bitmap.getHeight(), blocks, null);
+            return new CompositeBitmap(bitmap.getWidth(), bitmap.getHeight(), blocks, props);
         }
         finally {
             ReferenceCounted.Utils.releaseAllAndClear(blocks);
