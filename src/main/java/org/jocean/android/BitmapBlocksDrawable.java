@@ -1,23 +1,54 @@
 package org.jocean.android;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.jocean.idiom.Detachable;
+import org.jocean.idiom.Propertyable;
+import org.jocean.idiom.ReferenceCounted;
+import org.jocean.idiom.pool.ObjectPool.Ref;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
-public class ImageBlocksDrawable extends Drawable implements Detachable {
+public class BitmapBlocksDrawable extends Drawable 
+    implements Propertyable<BitmapBlocksDrawable>, Detachable {
 
-    public ImageBlocksDrawable(final int w, final int h, final ImageBlock[] blocks) {
+    public BitmapBlocksDrawable(final int w, final int h, 
+            final Collection<Ref<BitmapBlock>> blocks, final Map<String, Object> props) {
         this._width = w;
         this._height = h;
-        this._blocks = blocks;
+        this._blocks = new ArrayList<Ref<BitmapBlock>>(blocks.size());
+        this._properties.putAll(props);
+        
+        ReferenceCounted.Utils.copyAllAndRetain(blocks, _blocks);
     }
 
     @Override
-    public void detach() throws Exception {
-//        this._img.release();
+    public <V> V getProperty(final String key) {
+        return (V)this._properties.get(key);
+    }
+
+    @Override
+    public <V> BitmapBlocksDrawable setProperty(final String key, final V obj) {
+        this._properties.put(key, obj);
+        return this;
+    }
+
+    @Override
+    public Map<String, Object> getProperties() {
+        return Collections.unmodifiableMap(this._properties);
+    }
+    
+    @Override
+    public void detach() {
+        ReferenceCounted.Utils.releaseAllAndClear(this._blocks);
     }
 
 //    public RawImage rawImage() {
@@ -48,8 +79,8 @@ public class ImageBlocksDrawable extends Drawable implements Detachable {
         try {
             canvas.scale(this._sx, this._sy, this._bounds.left,
                     this._bounds.top);
-            for ( ImageBlock block : this._blocks ) {
-                block.draw(canvas, this._bounds.left, this._bounds.top, null);
+            for ( Ref<BitmapBlock> block : this._blocks ) {
+                block.object().draw(canvas, this._bounds.left, this._bounds.top, null);
             }
         } finally {
             canvas.restoreToCount(saveCount);
@@ -90,7 +121,8 @@ public class ImageBlocksDrawable extends Drawable implements Detachable {
     
     private final int _width;
     private final int _height;
-    private final ImageBlock[] _blocks;
+    private final List<Ref<BitmapBlock>> _blocks;
+    private final Map<String, Object> _properties = new HashMap<String, Object>();
 
     // private int mTargetDensity;
 }

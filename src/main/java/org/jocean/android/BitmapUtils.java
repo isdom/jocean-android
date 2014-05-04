@@ -8,9 +8,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jocean.android.pool.BitmapsPool;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.BytesPool;
 import org.jocean.idiom.pool.IntsPool;
+import org.jocean.idiom.pool.ObjectPool.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,43 +116,48 @@ public class BitmapUtils {
         }
     }
     
-    private static final int BLOCK_W = 100;
-    private static final int BLOCK_H = 100;
-    
-    public static ImageBlocksDrawable decodeStreamAsBlocks(final InputStream is) {
-        BitmapRegionDecoder decoder = null;
+    public static BitmapBlocksDrawable decodeStreamAsBlocks(
+            final BitmapsPool pool, final InputStream is) {
+        final List<Ref<BitmapBlock>> blocks = new ArrayList<Ref<BitmapBlock>>();
+        
         try {
-            decoder = BitmapRegionDecoder.newInstance(is, false);
-            if ( null == decoder ) {
+            final Bitmap bitmap = BitmapFactory.decodeStream(is, null, null);
+//            decoder = BitmapRegionDecoder.newInstance(is, false);
+            if ( null == bitmap ) {
                 return null;
             }
-            final Rect rect = new Rect();
-            final List<ImageBlock> blocks = new ArrayList<ImageBlock>();
-            for ( int yidx = 0; yidx < decoder.getHeight(); yidx += BLOCK_H) {
-                final int h = Math.min(BLOCK_H, decoder.getHeight() - yidx);
+            
+            try {
+                final int BLOCK_W = pool.getWidthPerBlock();
+                final int BLOCK_H = pool.getHeightPerBlock();
+                final int[] ARGBS = new int[BLOCK_W * BLOCK_H];
                 
-                for ( int xidx = 0; xidx < decoder.getWidth(); xidx += BLOCK_W) {
-                    final int w = Math.min(BLOCK_W, decoder.getWidth() - xidx);
+                final Rect rect = new Rect();
+                
+                for ( int yidx = 0; yidx < bitmap.getHeight(); yidx += BLOCK_H) {
+                    final int h = Math.min(BLOCK_H, bitmap.getHeight() - yidx);
                     
-                    rect.set(xidx, yidx, xidx + w, yidx + h);
-                    final Bitmap bitmap = decoder.decodeRegion(rect, null);
-                    if ( null != bitmap ) {
-                        blocks.add(new ImageBlock(xidx, yidx, w, h, bitmap));
+                    for ( int xidx = 0; xidx < bitmap.getWidth(); xidx += BLOCK_W) {
+                        final int w = Math.min(BLOCK_W, bitmap.getWidth() - xidx);
+                        
+                        rect.set(xidx, yidx, xidx + w, yidx + h);
+                        final Ref<BitmapBlock> block = pool.retainObject();
+                        final Bitmap dest = block.object().bitmap();
+                        bitmap.getPixels(ARGBS, 0, BLOCK_W, xidx, yidx, w, h);
+                        dest.setPixels(ARGBS, 0, BLOCK_W, 0, 0, w, h);
+                        block.object().set(xidx, yidx, w, h);
+                        blocks.add(block);
                     }
                 }
             }
+            finally {
+                bitmap.recycle();
+            }
             
-            return new ImageBlocksDrawable(decoder.getWidth(), decoder.getHeight(), blocks.toArray(new ImageBlock[0]));
-        } catch (IOException e) {
-            LOG.warn("exception when decodeStreamAsBlocks, detail:{}", 
-                    ExceptionUtils.exception2detail(e));
+            return new BitmapBlocksDrawable(bitmap.getWidth(), bitmap.getHeight(), blocks, null);
         }
         finally {
-            if ( null != decoder ) {
-                decoder.recycle();
-            }
+            ReferenceCounted.Utils.releaseAllAndClear(blocks);
         }
-        
-        return null;
     }
 }
