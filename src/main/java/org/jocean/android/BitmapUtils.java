@@ -3,13 +3,11 @@
  */
 package org.jocean.android;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jocean.android.pool.BitmapsPool;
-import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.BytesPool;
 import org.jocean.idiom.pool.IntsPool;
@@ -19,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.BitmapRegionDecoder;
 import android.graphics.Rect;
 
 /**

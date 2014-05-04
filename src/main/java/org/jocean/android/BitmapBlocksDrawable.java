@@ -25,7 +25,9 @@ public class BitmapBlocksDrawable extends Drawable
         this._width = w;
         this._height = h;
         this._blocks = new ArrayList<Ref<BitmapBlock>>(blocks.size());
-        this._properties.putAll(props);
+        if ( null != props ) {
+            this._properties.putAll(props);
+        }
         
         ReferenceCounted.Utils.copyAllAndRetain(blocks, _blocks);
     }
