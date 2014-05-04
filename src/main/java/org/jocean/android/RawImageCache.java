@@ -61,6 +61,7 @@ public final class RawImageCache<KEY>  {
     }
     
     public RawImage put( final KEY key, final RawImage image) {
+        //  TODO, sync or async record to DiskCache
         return this._memoryCache.put(key, image.retain());
     }
     
@@ -70,7 +71,7 @@ public final class RawImageCache<KEY>  {
             return tryLoadFromDisk(key);
         }
         else {
-            return null;
+            return img;
         }
     }
     
