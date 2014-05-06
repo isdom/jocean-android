@@ -1,13 +1,13 @@
 /**
  * 
  */
-package org.jocean.android;
+package org.jocean.android.bitmap;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 import org.jocean.idiom.ExceptionUtils;
-import org.jocean.image.RawImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +15,7 @@ import android.support.v4.util.LruCache;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import com.jakewharton.disklrucache.DiskLruCache.Editor;
+import com.jakewharton.disklrucache.DiskLruCache.Snapshot;
 
 /**
  * @author isdom
@@ -25,7 +26,7 @@ public final class CompositeBitmapCache<KEY>  {
     private static final Logger LOG = 
             LoggerFactory.getLogger(CompositeBitmapCache.class);
     
-    public CompositeBitmapCache(final int maxInMemorySize, final DiskLruCache diskCache ) {
+    public CompositeBitmapCache(final int maxInMemorySize, final BitmapsPool pool, final DiskLruCache diskCache ) {
         this._memoryCache = new LruCache<KEY, CompositeBitmap>(maxInMemorySize) {
             @Override
             protected void entryRemoved(
@@ -39,7 +40,7 @@ public final class CompositeBitmapCache<KEY>  {
                             key, newValue, oldValue, size() / 1024.0f);
                 }
                 try {
-                    //saveToDisk(key, oldValue);
+                    trySaveToDisk(key, oldValue);
                 }
                 catch (Exception e) {
                     LOG.error("exception when put image to disk, detail:{}", 
@@ -56,6 +57,7 @@ public final class CompositeBitmapCache<KEY>  {
             }
         };
         this._diskCache = diskCache;
+        this._pool = pool;
     }
     
     public CompositeBitmap put( final KEY key, final CompositeBitmap cb) {
@@ -78,7 +80,6 @@ public final class CompositeBitmapCache<KEY>  {
             return null;
         }
         
-        /*
         try {
             final String diskKey = Md5.encode( key.toString() );
             final Snapshot snapshot = this._diskCache.get(diskKey);
@@ -86,16 +87,17 @@ public final class CompositeBitmapCache<KEY>  {
                 try {
                     final InputStream is = snapshot.getInputStream(0);
                     if ( null != is ) {
-                        final RawImage img = RawImage.decodeFrom(is);
-                        if ( null != img ) {
+                        final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._pool);
+                        if ( null != bitmap ) {
                             try {
                                 if ( LOG.isTraceEnabled() ) {
-                                    LOG.trace("tryLoadFromDisk: load RawImage({}) from disk for key({})", img, key);
+                                    LOG.trace("tryLoadFromDisk: load CompositeBitmap({}) from disk for key({})", bitmap, key);
                                 }
-                                return put(key, img);
+                                put(key, bitmap);
+                                return bitmap;
                             }
                             finally {
-                                img.release();
+                                bitmap.release();
                             }
                         }
                     }
@@ -108,7 +110,6 @@ public final class CompositeBitmapCache<KEY>  {
             LOG.error("exception when tryLoadFromDisk for key({}), detail:{} ", 
                     key, ExceptionUtils.exception2detail(e));
         }
-        */
         
         return null;
     }
@@ -120,22 +121,36 @@ public final class CompositeBitmapCache<KEY>  {
      * @throws IOException
      * @throws Exception
      */
-    private void saveToDisk(
+    private void trySaveToDisk(
             final KEY key,
-            final RawImage img) throws Exception {
+            final CompositeBitmap bitmap) throws Exception {
         if ( null != this._diskCache ) {
-            final Editor editor = this._diskCache.edit(Md5.encode( key.toString()));
-            OutputStream os = null;
-            if ( null != editor ) {
-                try {
-                    os = editor.newOutputStream(0);
-                    img.encodeTo(os);
-                }
-                finally {
-                    editor.commit();
-                    if ( null != os ) {
-                        os.close();
+            if ( LOG.isTraceEnabled() ) {
+                LOG.trace("trySaveToDisk: key({})/bitmap({}) NOT save to disk before, try to save.", key, bitmap);
+            }
+            final String md5 = Md5.encode( key.toString());
+            if ( null == this._diskCache.get(md5) ) {
+                final Editor editor = this._diskCache.edit(md5);
+                OutputStream os = null;
+                if ( null != editor ) {
+                    try {
+                        os = editor.newOutputStream(0);
+                        bitmap.encodeTo(os);
+                        if ( LOG.isTraceEnabled() ) {
+                            LOG.trace("trySaveToDisk: save key({}) to disk succeed", key);
+                        }
                     }
+                    finally {
+                        editor.commit();
+                        if ( null != os ) {
+                            os.close();
+                        }
+                    }
+                }
+            }
+            else {
+                if ( LOG.isTraceEnabled() ) {
+                    LOG.trace("trySaveToDisk: key({})/bitmap({}) already save to disk cache.", key, bitmap);
                 }
             }
         }
@@ -147,5 +162,5 @@ public final class CompositeBitmapCache<KEY>  {
 
     private final LruCache<KEY, CompositeBitmap> _memoryCache;
     private final DiskLruCache _diskCache;
-    
+    private final BitmapsPool _pool;
 }

@@ -8,7 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.jocean.android.pool.BitmapsPool;
+import org.jocean.android.bitmap.BitmapBlock;
+import org.jocean.android.bitmap.BitmapsPool;
+import org.jocean.android.bitmap.CompositeBitmap;
 import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.BytesPool;
 import org.jocean.idiom.pool.IntsPool;
@@ -111,51 +113,6 @@ public class BitmapUtils {
             final Bitmap bitmap = ( null == opts ? BitmapFactory.decodeStream(is) 
                     : BitmapFactory.decodeStream(is, null, opts));
             return (null != bitmap ? new DefaultBitmapHolder(bitmap) : null);
-        }
-    }
-    
-    public static CompositeBitmap decodeStreamAsBlocks(
-            final BitmapsPool pool, final InputStream is, final Map<String, Object> props) {
-        final List<Ref<BitmapBlock>> blocks = new ArrayList<Ref<BitmapBlock>>();
-        
-        try {
-            final Bitmap bitmap = BitmapFactory.decodeStream(is, null, null);
-//            decoder = BitmapRegionDecoder.newInstance(is, false);
-            if ( null == bitmap ) {
-                return null;
-            }
-            
-            try {
-                final int BLOCK_W = pool.getWidthPerBlock();
-                final int BLOCK_H = pool.getHeightPerBlock();
-                final int[] ARGBS = new int[BLOCK_W * BLOCK_H];
-                
-                final Rect rect = new Rect();
-                
-                for ( int yidx = 0; yidx < bitmap.getHeight(); yidx += BLOCK_H) {
-                    final int h = Math.min(BLOCK_H, bitmap.getHeight() - yidx);
-                    
-                    for ( int xidx = 0; xidx < bitmap.getWidth(); xidx += BLOCK_W) {
-                        final int w = Math.min(BLOCK_W, bitmap.getWidth() - xidx);
-                        
-                        rect.set(xidx, yidx, xidx + w, yidx + h);
-                        final Ref<BitmapBlock> block = pool.retainObject();
-                        final Bitmap dest = block.object().bitmap();
-                        bitmap.getPixels(ARGBS, 0, BLOCK_W, xidx, yidx, w, h);
-                        dest.setPixels(ARGBS, 0, BLOCK_W, 0, 0, w, h);
-                        block.object().set(xidx, yidx, w, h);
-                        blocks.add(block);
-                    }
-                }
-            }
-            finally {
-                bitmap.recycle();
-            }
-            
-            return new CompositeBitmap(bitmap.getWidth(), bitmap.getHeight(), blocks, props);
-        }
-        finally {
-            ReferenceCounted.Utils.releaseAllAndClear(blocks);
         }
     }
 }

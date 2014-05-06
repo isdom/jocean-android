@@ -1,4 +1,4 @@
-package org.jocean.android;
+package org.jocean.android.bitmap;
 
 import org.jocean.idiom.Detachable;
 import org.slf4j.Logger;
