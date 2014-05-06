@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import org.jocean.android.bitmap.Md5;
+import org.jocean.android.agent.impl.Md5;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.image.RawImage;
 import org.slf4j.Logger;

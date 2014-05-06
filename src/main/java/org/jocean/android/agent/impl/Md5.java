@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package org.jocean.android.bitmap;
+package org.jocean.android.agent.impl;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

@@ -1,0 +1,88 @@
+/**
+ * 
+ */
+package org.jocean.android.agent.api;
+
+import java.net.URI;
+
+import org.jocean.android.bitmap.CompositeBitmap;
+import org.jocean.idiom.Detachable;
+import org.jocean.rosa.api.TransactionPolicy;
+
+/**
+ * @author isdom
+ *
+ */
+public interface BitmapAgent {
+    
+    // define fromo 100
+    public static final int FAILURE_BITMAP_DECODE_FAILED = 100;
+    
+    public static final String _PROPERTY_SOURCE_URI = "_src_uri";
+    
+    public interface BitmapTransaction extends Detachable {
+        public <CTX> void start(
+                final URI uri, 
+                final CTX ctx,
+                final BitmapReactor<CTX> reactor, 
+                final TransactionPolicy policy);
+    }
+    
+    public interface BitmapReactor<CTX> {
+        
+        /**
+         * bitmap cached in memory or local disk, so just return soon
+         */
+        public void onBitmapCached(final CTX ctx, final CompositeBitmap bitmap, final boolean inMemoryCache)
+            throws Exception;
+        
+        /**
+         * transport layer actived for this bitmap fetch action
+         */
+        public void onTransportActived(final CTX ctx) throws Exception;
+
+        /**
+         * transport layer inactived for this bitmap fetch action
+         * @throws Exception
+         */
+        public void onTransportInactived(final CTX ctx) throws Exception;
+
+        /**
+         * on content-type received, eg: "application/json" ...
+         * @param contentType
+         * @throws Exception
+         */
+        public void onContentTypeReceived(final CTX ctx, final String contentType) 
+                throws Exception;
+        
+        /**
+         * bitmap fetch action in progress, maybe invoke more than once
+         * @param currentByteSize: current fetched bytes
+         * @param totalByteSize: total bytes for image
+         */
+        public void onProgress(final CTX ctx, final long currentByteSize, final long totalByteSize) 
+                throws Exception;
+
+        /**
+         * bitmap fetched and decode as CompositeBitmap succeed
+         * @param bitmap : composite bitmap
+         */
+        public void onBitmapReceived(final CTX ctx, final CompositeBitmap bitmap) 
+                throws Exception;
+        
+        /**
+         * bitmap fetch action failed(timeout or received failed)
+         */
+        public void onTransactionFailure(final CTX ctx, final int failureReason) 
+                throws Exception;
+
+    }
+    
+	/**
+	 * create transaction for bitmap fetch via special uri
+	 * 
+	 * @param uri: uri for fetch bitmap
+	 * @return
+	 */
+	public BitmapTransaction createBitmapTransaction();
+}
