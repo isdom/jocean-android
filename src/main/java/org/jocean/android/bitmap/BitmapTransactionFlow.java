@@ -1,18 +1,14 @@
 /**
  * 
  */
-package org.jocean.android.agent.impl;
+package org.jocean.android.bitmap;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.HashMap;
 
-import org.jocean.android.agent.api.BitmapAgent;
-import org.jocean.android.agent.api.BitmapAgent.BitmapReactor;
-import org.jocean.android.bitmap.Bitmaps;
-import org.jocean.android.bitmap.BitmapsPool;
-import org.jocean.android.bitmap.CompositeBitmap;
+import org.jocean.android.bitmap.BitmapAgent.BitmapReactor;
 import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.ArgsHandler;
 import org.jocean.event.api.ArgsHandlerSource;
@@ -125,6 +121,14 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         this._bitmapReactor = reactor;
         this._blobTransaction = this._blobAgent.createBlobTransaction();
         this._blobTransaction.start(uri, this.queryInterfaceInstance(BlobReactor.class), policy);
+        
+        try {
+            this._bitmapReactor.onStartDownload( this._ctx );
+        }
+        catch (Exception e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartDownload, detail:{}", 
+                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
+        }
         
 		return OBTAINING;
 	}
@@ -381,6 +385,16 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         this._failureReason = failureReason;
     }
     
+    @Override
+    public String toString() {
+        return "BitmapTransactionFlow ["+Integer.toHexString(hashCode()) 
+                + ", memoryCache=" + _memoryCache
+                + ", diskCache=" + _diskCache + ", failureReason="
+                + _failureReason + ", key=" + _key + ", ctx=" + _ctx
+                + ", bitmapReactor=" + _bitmapReactor + ", blobTransaction="
+                + _blobTransaction + "]";
+    }
+
     private final BlobAgent _blobAgent;
     private final BitmapsPool _bitmapsPool;
     private final LruCache<String, CompositeBitmap> _memoryCache;

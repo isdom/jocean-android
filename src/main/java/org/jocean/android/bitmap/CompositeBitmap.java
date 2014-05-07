@@ -41,7 +41,7 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
     private static final AtomicInteger _TOTAL_SIZE = new AtomicInteger(0);
     
     private static final Logger LOG = 
-            LoggerFactory.getLogger(CompositeBitmapDrawable.class);
+            LoggerFactory.getLogger(CompositeBitmap.class);
     
     CompositeBitmap(final BitmapsPool pool, final int w, final int h, 
             final Collection<Ref<BitmapBlock>> blocks, final Map<String, Object> props) {
@@ -256,7 +256,8 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
 
     @Override
     public String toString() {
-        return "CompositeBitmap [width=" + _width + ", height="
+        return "CompositeBitmap ["+Integer.toHexString(hashCode()) 
+                + ", width=" + _width + ", height="
                 + _height + ", sizeInBytes=(" + _sizeInBytes / 1024.0f + ")KBytes, blocks count="
                 + _blocks.size() + ", _properties=" + _properties + "]";
     }

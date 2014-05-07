@@ -5,8 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.jocean.event.api.EventReceiverSource;
 import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.ObjectPool.Ref;
+import org.jocean.rosa.api.BlobAgent;
+
+import com.jakewharton.disklrucache.DiskLruCache;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -18,6 +22,16 @@ public abstract class Bitmaps {
         return new CachedBitmapsPool(w, h, config);
     }
 
+    public static BitmapAgent createBitmapAgent(
+            final EventReceiverSource source,
+            final BitmapsPool pool, 
+            final BlobAgent blobAgent,
+            final int maxMemoryCacheSizeInBytes,
+            final DiskLruCache diskCache
+            ) {
+        return new BitmapAgentImpl(source, pool, blobAgent, maxMemoryCacheSizeInBytes, diskCache);
+    }
+    
     public static CompositeBitmap decodeStreamAsBlocks(
             final BitmapsPool pool, final InputStream is, final Map<String, Object> props) {
         final List<Ref<BitmapBlock>> blocks = new ArrayList<Ref<BitmapBlock>>();

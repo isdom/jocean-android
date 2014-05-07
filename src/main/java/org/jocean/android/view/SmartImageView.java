@@ -63,5 +63,12 @@ public class SmartImageView extends ImageView {
         this.setImageDrawable(drawable);
 	}
 	
-	private volatile DrawerOnView _drawer = null;
+	@Override
+    public String toString() {
+        return "SmartImageView ["+Integer.toHexString(hashCode()) 
+                +", tag=" + this.getTag() 
+                +", drawer=" + _drawer + "]";
+    }
+
+    private volatile DrawerOnView _drawer = null;
 }

@@ -1,11 +1,10 @@
 /**
  * 
  */
-package org.jocean.android.agent.api;
+package org.jocean.android.bitmap;
 
 import java.net.URI;
 
-import org.jocean.android.bitmap.CompositeBitmap;
 import org.jocean.idiom.Detachable;
 import org.jocean.rosa.api.TransactionPolicy;
 
@@ -35,6 +34,14 @@ public interface BitmapAgent {
          */
         public void onBitmapCached(final CTX ctx, final CompositeBitmap bitmap, final boolean inMemoryCache)
             throws Exception;
+        
+        /**
+         * notify start download from network by uri
+         * @param ctx
+         * @throws Exception
+         */
+        public void onStartDownload(final CTX ctx)
+                throws Exception;
         
         /**
          * transport layer actived for this bitmap fetch action

@@ -4,23 +4,14 @@
 package org.jocean.android;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
-import org.jocean.android.bitmap.BitmapBlock;
-import org.jocean.android.bitmap.BitmapsPool;
-import org.jocean.android.bitmap.CompositeBitmap;
-import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.BytesPool;
 import org.jocean.idiom.pool.IntsPool;
-import org.jocean.idiom.pool.ObjectPool.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Rect;
 
 /**
  * @author isdom

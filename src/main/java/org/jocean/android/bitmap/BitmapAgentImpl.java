@@ -1,11 +1,8 @@
 /**
  * 
  */
-package org.jocean.android.agent.impl;
+package org.jocean.android.bitmap;
 
-import org.jocean.android.agent.api.BitmapAgent;
-import org.jocean.android.bitmap.BitmapsPool;
-import org.jocean.android.bitmap.CompositeBitmap;
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.rosa.api.BlobAgent;
 
@@ -17,7 +14,7 @@ import com.jakewharton.disklrucache.DiskLruCache;
  * @author isdom
  *
  */
-public class BitmapAgentImpl implements BitmapAgent {
+class BitmapAgentImpl implements BitmapAgent {
 
     public BitmapAgentImpl(
             final EventReceiverSource source,

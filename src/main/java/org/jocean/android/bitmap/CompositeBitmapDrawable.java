@@ -12,6 +12,7 @@ import android.graphics.drawable.Drawable;
 public class CompositeBitmapDrawable extends Drawable 
     implements Detachable {
 
+    @SuppressWarnings("unused")
     private static final Logger LOG = 
             LoggerFactory.getLogger(CompositeBitmapDrawable.class);
     
