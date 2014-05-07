@@ -9,6 +9,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jocean.android.bitmap.BitmapAgent.BitmapInMemoryReactor;
 import org.jocean.android.bitmap.BitmapAgent.BitmapReactor;
 import org.jocean.android.bitmap.BitmapAgent.PropertiesInitializer;
 import org.jocean.event.api.AbstractFlow;
@@ -75,7 +76,8 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
     
 	public final BizStep WAIT = new BizStep("bitmap.WAIT")
-			.handler(selfInvoker("onTransactionStart"))
+            .handler(selfInvoker("onLoadFromMemoryOnly"))
+			.handler(selfInvoker("onLoadAnyway"))
 			.handler(selfInvoker("onDetach"))
 			.freeze();
 	
@@ -99,8 +101,39 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
 		return null;
 	}
 
-    @OnEvent(event = "start")
-	private BizStep onTransactionStart(
+    @OnEvent(event = "loadFromMemoryOnly")
+    private BizStep onLoadFromMemoryOnly(
+            final URI uri,
+            final Object ctx,
+            final BitmapInMemoryReactor<Object> reactor) {
+        final String key = uri.toASCIIString();
+        
+        final CompositeBitmap bitmap = this._memoryCache.get(key);
+        try {
+            reactor.onLoadFromMemoryResult(ctx, bitmap);
+        }
+        catch (Exception e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapInMemoryReactor.onLoadFromMemoryResult, detail:{}", 
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+        if ( null != bitmap ) {
+            if ( LOG.isTraceEnabled() ) {
+                LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
+                        bitmap, ctx, key);
+            }
+            return null;
+        }
+        else {
+            if ( LOG.isTraceEnabled() ) {
+                LOG.trace("onLoadFromMemoryOnly: ctx({})/key({})'s bitmap !NOT! in memory cache.", 
+                        ctx, key);
+            }
+            return this.currentEventHandler();
+        }
+	}
+	
+    @OnEvent(event = "loadAnyway")
+	private BizStep onLoadAnyway(
 	        final URI uri,
             final Object ctx,
             final BitmapReactor<Object> reactor, 
@@ -251,7 +284,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         if ( null != bitmap ) {
             try {
                 if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("onTransactionStart: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
+                    LOG.trace("onLoadAnyway: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
                             bitmap, ctx, key);
                 }
                 reactor.onBitmapCached(ctx, bitmap, true);
@@ -300,7 +333,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                         if ( null != bitmap ) {
                             try {
                                 if ( LOG.isTraceEnabled() ) {
-                                    LOG.trace("onTransactionStart: load CompositeBitmap({}) from disk for ctx({})/key({})", 
+                                    LOG.trace("onLoadAnyway: load CompositeBitmap({}) from disk for ctx({})/key({})", 
                                             bitmap, ctx, key);
                                 }
                                 putToMemoryCache(key, bitmap);

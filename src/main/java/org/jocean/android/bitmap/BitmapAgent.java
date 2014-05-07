@@ -23,12 +23,30 @@ public interface BitmapAgent {
     }
     
     public interface BitmapTransaction extends Detachable {
-        public <CTX> void start(
+        public <CTX> void loadFromMemoryOnly(
+                final URI uri, 
+                final CTX ctx,
+                final BitmapInMemoryReactor<CTX> reactor);
+        
+        public <CTX> void loadAnyway(
                 final URI uri, 
                 final CTX ctx,
                 final BitmapReactor<CTX> reactor, 
                 final PropertiesInitializer<CTX> initializer,
                 final TransactionPolicy policy);
+    }
+    
+    public interface BitmapInMemoryReactor<CTX> {
+        
+        /**
+         * load bitmap from memory's result
+         * @param ctx
+         * @param bitmap  != null means load succeed, otherwise means bitmap not in memory
+         *                          maybe in disk cache or should download from network
+         * @throws Exception
+         */
+        public void onLoadFromMemoryResult(final CTX ctx, final CompositeBitmap bitmap)
+            throws Exception;
     }
     
     public interface BitmapReactor<CTX> {
