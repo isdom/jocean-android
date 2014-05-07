@@ -4,8 +4,10 @@
 package org.jocean.android.bitmap;
 
 import java.net.URI;
+import java.util.Map;
 
 import org.jocean.idiom.Detachable;
+import org.jocean.idiom.Visitor2;
 import org.jocean.rosa.api.TransactionPolicy;
 
 /**
@@ -17,31 +19,40 @@ public interface BitmapAgent {
     // define fromo 100
     public static final int FAILURE_BITMAP_DECODE_FAILED = 100;
     
-    public static final String _PROPERTY_SOURCE_URI = "_src_uri";
+    public interface PropertiesInitializer<CTX> extends Visitor2<CTX, Map<String, Object>> {
+    }
     
     public interface BitmapTransaction extends Detachable {
         public <CTX> void start(
                 final URI uri, 
                 final CTX ctx,
                 final BitmapReactor<CTX> reactor, 
+                final PropertiesInitializer<CTX> initializer,
                 final TransactionPolicy policy);
     }
     
     public interface BitmapReactor<CTX> {
+        /**
+         * notify start load bitmap from local disk by uri
+         * @param ctx
+         * @throws Exception
+         */
+        public void onStartLoadFromDisk(final CTX ctx)
+                throws Exception;
+        
+        /**
+         * notify start download bitmap from network by uri
+         * @param ctx
+         * @throws Exception
+         */
+        public void onStartDownload(final CTX ctx)
+                throws Exception;
         
         /**
          * bitmap cached in memory or local disk, so just return soon
          */
         public void onBitmapCached(final CTX ctx, final CompositeBitmap bitmap, final boolean inMemoryCache)
             throws Exception;
-        
-        /**
-         * notify start download from network by uri
-         * @param ctx
-         * @throws Exception
-         */
-        public void onStartDownload(final CTX ctx)
-                throws Exception;
         
         /**
          * transport layer actived for this bitmap fetch action

@@ -72,13 +72,13 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
             final int w, 
             @JSONField(name="height")
             final int h, 
-            @JSONField(name="properties")
-            final Map<String, Object> props,
             @JSONField(name="blockCount")
             final int blockCount
             ) {
         this._width = w;
         this._height = h;
+        
+        final Map<String, Object> props = _CURRENT_PROPERTIES.get();
         if ( null != props ) {
             this._properties.putAll(props);
         }
@@ -133,7 +133,7 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         return this;
     }
 
-    @JSONField(name = "properties")
+    @JSONField(serialize = false)
     @Override
     public Map<String, Object> getProperties() {
         return Collections.unmodifiableMap(this._properties);
@@ -220,10 +220,11 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         public void setHeight(int height);
     };
        
-    public static CompositeBitmap decodeFrom(final InputStream is, final BitmapsPool pool) 
+    public static CompositeBitmap decodeFrom(final InputStream is, final BitmapsPool pool, final Map<String, Object> toinit) 
             throws Exception {
         
         _CURRENT_POOL.set(pool);
+        _CURRENT_PROPERTIES.set(toinit);
         final Ref<int[]> ints = pool.borrowBlockSizeInts();
         
         try {
@@ -242,6 +243,7 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         finally {
             ints.release();
             _CURRENT_POOL.remove();
+            _CURRENT_PROPERTIES.remove();
         }
     }
     
@@ -263,6 +265,7 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
     }
 
     public static ThreadLocal<BitmapsPool> _CURRENT_POOL = new ThreadLocal<BitmapsPool>();
+    public static ThreadLocal<Map<String, Object>> _CURRENT_PROPERTIES = new ThreadLocal<Map<String, Object>>();
     
     private final BitmapsPool _pool;
     private final int _width;

@@ -7,8 +7,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.jocean.android.bitmap.BitmapAgent.BitmapReactor;
+import org.jocean.android.bitmap.BitmapAgent.PropertiesInitializer;
 import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.ArgsHandler;
 import org.jocean.event.api.ArgsHandlerSource;
@@ -102,6 +104,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
 	        final URI uri,
             final Object ctx,
             final BitmapReactor<Object> reactor, 
+            final PropertiesInitializer<Object> initializer,
 	        final TransactionPolicy policy) 
             throws Exception {
 
@@ -111,7 +114,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             return null;
         }
         
-        if ( tryLoadFromDiskCache(key, ctx, reactor) ) {
+        if ( tryLoadFromDiskCache(key, ctx, reactor, initializer) ) {
             return null;
         }
 
@@ -121,9 +124,10 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         this._bitmapReactor = reactor;
         this._blobTransaction = this._blobAgent.createBlobTransaction();
         this._blobTransaction.start(uri, this.queryInterfaceInstance(BlobReactor.class), policy);
+        this._propertiesInitializer = initializer;
         
         try {
-            this._bitmapReactor.onStartDownload( this._ctx );
+            this._bitmapReactor.onStartDownload( this._ctx);
         }
         catch (Exception e) {
             LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartDownload, detail:{}", 
@@ -187,13 +191,10 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     public BizStep onBlobReceived(final Blob blob) throws Exception {
         final InputStream is = blob.genInputStream();
         try {
+            final Map<String, Object> toinit = new HashMap<String, Object>();
+            safeInitProperties(this._ctx, this._key, this._propertiesInitializer, toinit);
             final CompositeBitmap bitmap = Bitmaps.decodeStreamAsBlocks(
-                    this._bitmapsPool, is, 
-                    new HashMap<String, Object>() {
-                        private static final long serialVersionUID = 1L;
-                    {
-                        this.put(BitmapAgent._PROPERTY_SOURCE_URI, _key);
-                    }});
+                    this._bitmapsPool, is, toinit);
             if ( null != bitmap ) {
                 try {
                     putToMemoryCache(this._key, bitmap);
@@ -270,12 +271,14 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
      * @param key
      * @param ctx
      * @param reactor
+     * @param initializer 
      * @throws Exception
      */
     private boolean tryLoadFromDiskCache(
             final String key, 
             final Object ctx,
-            final BitmapReactor<Object> reactor) 
+            final BitmapReactor<Object> reactor, 
+            final PropertiesInitializer<Object> initializer) 
         throws Exception {
         if ( null != this._diskCache ) {
             final Snapshot snapshot = this._diskCache.get(Md5.encode(key) );
@@ -283,7 +286,17 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 try {
                     final InputStream is = snapshot.getInputStream(0);
                     if ( null != is ) {
-                        final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool );
+                        try {
+                            reactor.onStartLoadFromDisk(ctx);
+                        }
+                        catch (Exception e) {
+                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
+                                    ctx, key, ExceptionUtils.exception2detail(e));
+                        }
+                        
+                        final Map<String, Object> toinit = new HashMap<String, Object>();
+                        safeInitProperties(ctx, key, initializer, toinit);
+                        final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool, toinit);
                         if ( null != bitmap ) {
                             try {
                                 if ( LOG.isTraceEnabled() ) {
@@ -311,6 +324,27 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             }
         }
         return false;
+    }
+
+    /**
+     * @param ctx
+     * @param key
+     * @param initializer
+     * @param toinit
+     */
+    private void safeInitProperties(
+            final Object ctx, final String key,
+            final PropertiesInitializer<Object> initializer,
+            final Map<String, Object> toinit) {
+        if ( null != initializer ) {
+            try {
+                initializer.visit(ctx, toinit);
+            }
+            catch (Exception e) {
+                LOG.warn("exception when ctx({})/key({})'s initializer({}).visit, detail:{}", 
+                        ctx, key, initializer, ExceptionUtils.exception2detail(e));
+            }
+        }
     }
 
     /**
@@ -404,5 +438,6 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     private String _key;
     private Object _ctx;
 	private BitmapReactor<Object> _bitmapReactor = null;
+	private PropertiesInitializer<Object> _propertiesInitializer = null;
 	private BlobTransaction    _blobTransaction = null;
 }
