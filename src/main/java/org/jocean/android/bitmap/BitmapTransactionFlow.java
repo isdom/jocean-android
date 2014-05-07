@@ -121,15 +121,14 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
                         bitmap, ctx, key);
             }
-            return null;
         }
         else {
             if ( LOG.isTraceEnabled() ) {
                 LOG.trace("onLoadFromMemoryOnly: ctx({})/key({})'s bitmap !NOT! in memory cache.", 
                         ctx, key);
             }
-            return this.currentEventHandler();
         }
+        return null;
 	}
 	
     @OnEvent(event = "loadAnyway")
