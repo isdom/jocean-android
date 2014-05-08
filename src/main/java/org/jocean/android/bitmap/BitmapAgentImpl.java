@@ -3,6 +3,8 @@
  */
 package org.jocean.android.bitmap;
 
+import java.net.URI;
+
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.rosa.api.BlobAgent;
 
@@ -56,6 +58,17 @@ class BitmapAgentImpl implements BitmapAgent {
         return flow.queryInterfaceInstance(BitmapTransaction.class);
     }
 
+    @Override
+    public CompositeBitmap tryRetainFromMemorySync(final URI uri) {
+        final CompositeBitmap bitmap = this._memoryCache.get(uri.toASCIIString());
+        if ( null != bitmap ) {
+            return bitmap.tryRetain();
+        }
+        else {
+            return null;
+        }
+    }
+    
     private final BitmapsPool _pool;
     private final BlobAgent _blobAgent;
     private final LruCache<String, CompositeBitmap> _memoryCache;

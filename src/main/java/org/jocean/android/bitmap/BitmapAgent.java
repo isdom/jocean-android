@@ -121,4 +121,6 @@ public interface BitmapAgent {
 	 * @return
 	 */
 	public BitmapTransaction createBitmapTransaction();
+
+    public CompositeBitmap tryRetainFromMemorySync(final URI uri);
 }
