@@ -29,8 +29,6 @@ import org.jocean.rosa.api.TransactionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.support.v4.util.LruCache;
-
 import com.jakewharton.disklrucache.DiskLruCache;
 import com.jakewharton.disklrucache.DiskLruCache.Editor;
 import com.jakewharton.disklrucache.DiskLruCache.Snapshot;
@@ -48,7 +46,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     public BitmapTransactionFlow(
             final BitmapsPool pool,
             final BlobAgent blobAgent,
-            final LruCache<String, CompositeBitmap> memoryCache,
+            final CompositeBitmapCache memoryCache,
             final DiskLruCache diskCache) {
         this._bitmapsPool = pool;
         this._blobAgent = blobAgent;
@@ -253,6 +251,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             }
             else {
                 this.setFailureReason(BitmapAgent.FAILURE_BITMAP_DECODE_FAILED);
+                LOG.warn("can't deocde valid bitmap for ctx({})/key({})", this._ctx, this._key);
             }
         }
         finally {
@@ -463,7 +462,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
 
     private final BlobAgent _blobAgent;
     private final BitmapsPool _bitmapsPool;
-    private final LruCache<String, CompositeBitmap> _memoryCache;
+    private final CompositeBitmapCache _memoryCache;
     private final DiskLruCache _diskCache;
     private int _failureReason = TransactionConstants.FAILURE_UNKNOWN;
 	

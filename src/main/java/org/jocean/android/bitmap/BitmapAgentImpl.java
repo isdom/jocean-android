@@ -8,8 +8,6 @@ import java.net.URI;
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.rosa.api.BlobAgent;
 
-import android.support.v4.util.LruCache;
-
 import com.jakewharton.disklrucache.DiskLruCache;
 
 /**
@@ -22,28 +20,16 @@ class BitmapAgentImpl implements BitmapAgent {
             final EventReceiverSource source,
             final BitmapsPool pool, 
             final BlobAgent blobAgent,
-            final int maxMemoryCacheSizeInBytes,
+            final CompositeBitmapCache memoryCache,
             final DiskLruCache diskCache
             ) {
+        if ( null == memoryCache ) {
+            throw new NullPointerException("memoryCache must be not null.");
+        }
         this._source = source;
         this._pool = pool;
         this._blobAgent = blobAgent;
-        this._memoryCache = new LruCache<String, CompositeBitmap>(maxMemoryCacheSizeInBytes) {
-            @Override
-            protected void entryRemoved(
-                    final boolean evicted, 
-                    final String key, 
-                    final CompositeBitmap oldValue,
-                    final CompositeBitmap newValue) {
-                super.entryRemoved(evicted, key, oldValue, newValue);
-                oldValue.release();
-            }
-
-            @Override
-            protected int sizeOf(final String key, final CompositeBitmap cb) {
-                return cb.sizeInBytes();
-            }
-        };
+        this._memoryCache = memoryCache;
         this._diskCache = diskCache;
     }
     
@@ -71,7 +57,7 @@ class BitmapAgentImpl implements BitmapAgent {
     
     private final BitmapsPool _pool;
     private final BlobAgent _blobAgent;
-    private final LruCache<String, CompositeBitmap> _memoryCache;
+    private final CompositeBitmapCache _memoryCache;
     private final DiskLruCache _diskCache;
     
     private final EventReceiverSource _source;

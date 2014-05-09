@@ -26,10 +26,10 @@ public abstract class Bitmaps {
             final EventReceiverSource source,
             final BitmapsPool pool, 
             final BlobAgent blobAgent,
-            final int maxMemoryCacheSizeInBytes,
+            final CompositeBitmapCache memoryCache,
             final DiskLruCache diskCache
             ) {
-        return new BitmapAgentImpl(source, pool, blobAgent, maxMemoryCacheSizeInBytes, diskCache);
+        return new BitmapAgentImpl(source, pool, blobAgent, memoryCache, diskCache);
     }
     
     public static CompositeBitmap decodeStreamAsBlocks(
