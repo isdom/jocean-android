@@ -5,8 +5,14 @@ package org.jocean.android.bitmap;
 
 import java.net.URI;
 
+import org.jocean.event.api.AbstractFlow;
+import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventReceiverSource;
+import org.jocean.event.api.annotation.OnEvent;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.rosa.api.BlobAgent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 
@@ -15,6 +21,9 @@ import com.jakewharton.disklrucache.DiskLruCache;
  *
  */
 class BitmapAgentImpl implements BitmapAgent {
+
+    private static final Logger LOG = LoggerFactory
+            .getLogger(BitmapAgentImpl.class);
 
     public BitmapAgentImpl(
             final EventReceiverSource source,
@@ -46,12 +55,41 @@ class BitmapAgentImpl implements BitmapAgent {
 
     @Override
     public CompositeBitmap tryRetainFromMemorySync(final URI uri) {
-        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(uri.toASCIIString());
-        if ( null != bitmap ) {
-            return bitmap.tryRetain();
-        }
-        else {
+        return this._memoryCache.getAndTryRetain(uri.toASCIIString());
+    }
+    
+    private final class RemoveFlow extends AbstractFlow<RemoveFlow> {
+        final BizStep DO = new BizStep("remove.DO")
+            .handler(selfInvoker("onRemove"))
+            .freeze();
+
+        @OnEvent(event="remove")
+        private BizStep onRemove(final URI uri) throws Exception {
+            
+            if ( _diskCache.remove(Md5.encode(uri.toASCIIString())) ) {
+                if ( LOG.isTraceEnabled() ) {
+                    LOG.trace("BitmapAgent: remove bitmap for uri({}) from diskcache succeed.", uri);
+                }
+            }
+            else {
+                LOG.warn("BitmapAgent: remove bitmap for uri({}) from diskcache failed.", uri);
+            }
             return null;
+        }
+    }
+    
+    public void removeBitmap(final URI uri, final boolean alsoRemoveFromMemory) {
+        final RemoveFlow flow = new RemoveFlow();
+        
+        try {
+            this._source.create(flow, flow.DO).acceptEvent("remove", uri);
+        } catch (Exception e) {
+            LOG.warn("exception when exec remove event for uri({}), detail:{}", 
+                    uri, ExceptionUtils.exception2detail(e));
+        }
+        
+        if ( alsoRemoveFromMemory ) {
+            this._memoryCache.remove(uri.toASCIIString());
         }
     }
     

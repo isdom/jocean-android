@@ -133,4 +133,6 @@ public interface BitmapAgent {
 	public BitmapTransaction createBitmapTransaction();
 
     public CompositeBitmap tryRetainFromMemorySync(final URI uri);
+    
+    public void removeBitmap(final URI uri, final boolean alsoRemoveFromMemory);
 }
