@@ -312,7 +312,8 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final PropertiesInitializer<Object> initializer) 
         throws Exception {
         if ( null != this._diskCache ) {
-            final Snapshot snapshot = this._diskCache.get(Md5.encode(key) );
+            final String diskCacheKey = Md5.encode(key);
+            final Snapshot snapshot = this._diskCache.get(diskCacheKey);
             if ( null != snapshot ) {
                 try {
                     final InputStream is = snapshot.getInputStream(0);
@@ -327,6 +328,10 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                         
                         final Map<String, Object> toinit = new HashMap<String, Object>();
                         safeInitProperties(ctx, key, initializer, toinit);
+                        
+                        toinit.put(BitmapAgent.KEYS.PERSIST_FILENAME, 
+                                this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
+                        
                         final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool, toinit);
                         if ( null != bitmap ) {
                             try {
@@ -391,14 +396,16 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final Object ctx,
             final CompositeBitmap bitmap) throws Exception {
         if ( null != this._diskCache ) {
-            final String md5 = Md5.encode(key);
-            if ( null == this._diskCache.get(md5) ) {
-                final Editor editor = this._diskCache.edit(md5);
+            final String diskCacheKey = Md5.encode(key);
+            if ( null == this._diskCache.get(diskCacheKey) ) {
+                final Editor editor = this._diskCache.edit(diskCacheKey);
                 OutputStream os = null;
                 if ( null != editor ) {
                     try {
                         os = editor.newOutputStream(0);
                         bitmap.encodeTo(os);
+                        bitmap.setProperty(BitmapAgent.KEYS.PERSIST_FILENAME, 
+                                this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
                         if ( LOG.isTraceEnabled() ) {
                             LOG.trace("trySaveToDisk: save ctx({})/key({})'s bitmap({}) to disk succeed", 
                                     ctx, key, bitmap);
