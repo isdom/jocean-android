@@ -4,7 +4,6 @@
 package org.jocean.android.bitmap;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jakewharton.disklrucache.DiskLruCache;
-import com.jakewharton.disklrucache.DiskLruCache.Editor;
 import com.jakewharton.disklrucache.DiskLruCache.Snapshot;
 
 /**
@@ -119,6 +117,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
                         bitmap, ctx, key);
             }
+            bitmap.release();
         }
         else {
             if ( LOG.isTraceEnabled() ) {
@@ -291,6 +290,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
                         ctx, key, ExceptionUtils.exception2detail(e));
             }
+            finally {
+                bitmap.release();
+            }
             return true;
         }
         else {
@@ -383,12 +385,8 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         }
     }
 
-    /**
-     * @param key
-     * @param bitmap
-     */
     private void putToMemoryCache(final String key, final CompositeBitmap bitmap) {
-        this._memoryCache.retainAndPut(key, bitmap.retain());
+        this._memoryCache.retainAndPut(key, bitmap);
     }
 
     private void trySaveToDisk(
