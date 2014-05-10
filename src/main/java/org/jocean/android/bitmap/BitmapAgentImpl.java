@@ -46,7 +46,7 @@ class BitmapAgentImpl implements BitmapAgent {
 
     @Override
     public CompositeBitmap tryRetainFromMemorySync(final URI uri) {
-        final CompositeBitmap bitmap = this._memoryCache.get(uri.toASCIIString());
+        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(uri.toASCIIString());
         if ( null != bitmap ) {
             return bitmap.tryRetain();
         }

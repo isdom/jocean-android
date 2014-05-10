@@ -106,7 +106,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final BitmapInMemoryReactor<Object> reactor) {
         final String key = uri.toASCIIString();
         
-        final CompositeBitmap bitmap = this._memoryCache.get(key);
+        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
         try {
             reactor.onLoadFromMemoryResult(ctx, bitmap);
         }
@@ -278,7 +278,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final String key,
             final Object ctx,
             final BitmapReactor<Object> reactor) {
-        final CompositeBitmap bitmap = this._memoryCache.get(key);
+        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
         if ( null != bitmap ) {
             try {
                 if ( LOG.isTraceEnabled() ) {
@@ -383,7 +383,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
      * @param bitmap
      */
     private void putToMemoryCache(final String key, final CompositeBitmap bitmap) {
-        this._memoryCache.put(key, bitmap.retain());
+        this._memoryCache.retainAndPut(key, bitmap.retain());
     }
 
     private void trySaveToDisk(

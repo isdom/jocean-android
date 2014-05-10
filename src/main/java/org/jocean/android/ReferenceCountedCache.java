@@ -54,11 +54,11 @@ public class ReferenceCountedCache<K, V extends ReferenceCounted<? extends V>> {
         this._cache = new LruCacheImpl<K, V>(maxSize, sizeOf);
     }
     
-    public void put(final K key, final V value) {
+    public void retainAndPut(final K key, final V value) {
         this._cache.put(key, value.retain());
     }
     
-    public V get(final K key) {
+    public V getAndTryRetain(final K key) {
         final V value = this._cache.get(key);
         
         if ( null == value ) {
