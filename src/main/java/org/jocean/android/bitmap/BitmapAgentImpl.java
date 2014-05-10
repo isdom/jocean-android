@@ -9,8 +9,6 @@ import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.event.api.annotation.OnEvent;
-import org.jocean.idiom.ArgsHandler;
-import org.jocean.idiom.ArgsHandlerSource;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.rosa.api.BlobAgent;
 import org.slf4j.Logger;
@@ -58,43 +56,6 @@ class BitmapAgentImpl implements BitmapAgent {
     @Override
     public CompositeBitmap tryRetainFromMemorySync(final URI uri) {
         return this._memoryCache.getAndTryRetain(uri.toASCIIString());
-    }
-    
-    private final class SaveFlow extends AbstractFlow<SaveFlow> 
-        implements ArgsHandlerSource {
-        final BizStep DO = new BizStep("save.DO")
-            .handler(selfInvoker("onSave"))
-            .freeze();
-
-        @OnEvent(event="save")
-        private BizStep onSave(final URI uri, final CompositeBitmap bitmap) throws Exception {
-            Bitmaps.saveBitmapToDisk(uri.toASCIIString(), bitmap, _diskCache);
-            return null;
-        }
-
-        @Override
-        public ArgsHandler getArgsHandler() {
-            return ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD;
-        }
-    }
-    
-    @Override
-    public CompositeBitmap tryRetainFromMemoryAndAsyncSaveToDisk(final URI uri) {
-        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(uri.toASCIIString());
-        if ( null == bitmap ) {
-            //  not found from memory cache
-            return null;
-        }
-        
-        try {
-            final SaveFlow flow = new SaveFlow();
-            this._source.create(flow, flow.DO).acceptEvent("save", uri, bitmap);
-        } catch (Throwable e) {
-            LOG.warn("exception when exec save event for uri({}), detail:{}", 
-                    uri, ExceptionUtils.exception2detail(e));
-        }
-
-        return bitmap;
     }
     
     private final class RemoveFlow extends AbstractFlow<RemoveFlow> {
