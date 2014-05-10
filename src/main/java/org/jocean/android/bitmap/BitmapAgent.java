@@ -134,5 +134,7 @@ public interface BitmapAgent {
 
     public CompositeBitmap tryRetainFromMemorySync(final URI uri);
     
+    public CompositeBitmap tryRetainFromMemoryAndAsyncSaveToDisk(final URI uri);
+    
     public void removeBitmap(final URI uri, final boolean alsoRemoveFromMemory);
 }

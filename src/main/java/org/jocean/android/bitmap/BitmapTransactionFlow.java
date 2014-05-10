@@ -395,35 +395,12 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final String key, 
             final Object ctx,
             final CompositeBitmap bitmap) throws Exception {
-        if ( null != this._diskCache ) {
-            final String diskCacheKey = Md5.encode(key);
-            if ( null == this._diskCache.get(diskCacheKey) ) {
-                final Editor editor = this._diskCache.edit(diskCacheKey);
-                OutputStream os = null;
-                if ( null != editor ) {
-                    try {
-                        os = editor.newOutputStream(0);
-                        bitmap.encodeTo(os);
-                        bitmap.setProperty(BitmapAgent.KEYS.PERSIST_FILENAME, 
-                                this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
-                        if ( LOG.isTraceEnabled() ) {
-                            LOG.trace("trySaveToDisk: save ctx({})/key({})'s bitmap({}) to disk succeed", 
-                                    ctx, key, bitmap);
-                        }
-                    }
-                    finally {
-                        editor.commit();
-                        if ( null != os ) {
-                            os.close();
-                        }
-                    }
-                }
-            }
-            else {
-                if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("trySaveToDisk: ctx({})/key({})'s bitmap({}) already save to disk cache.", 
-                            ctx, key, bitmap);
-                }
+        final String cacheFilename = Bitmaps.saveBitmapToDisk(key, bitmap, this._diskCache);
+        if ( null != cacheFilename) {
+            bitmap.setProperty(BitmapAgent.KEYS.PERSIST_FILENAME, cacheFilename);
+            if ( LOG.isTraceEnabled() ) {
+                LOG.trace("trySaveToDisk: save ctx({})/key({})'s bitmap({}) to disk succeed", 
+                        ctx, key, bitmap);
             }
         }
     }

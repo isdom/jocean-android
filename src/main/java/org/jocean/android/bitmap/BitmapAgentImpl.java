@@ -9,6 +9,8 @@ import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.event.api.annotation.OnEvent;
+import org.jocean.idiom.ArgsHandler;
+import org.jocean.idiom.ArgsHandlerSource;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.rosa.api.BlobAgent;
 import org.slf4j.Logger;
@@ -58,6 +60,43 @@ class BitmapAgentImpl implements BitmapAgent {
         return this._memoryCache.getAndTryRetain(uri.toASCIIString());
     }
     
+    private final class SaveFlow extends AbstractFlow<SaveFlow> 
+        implements ArgsHandlerSource {
+        final BizStep DO = new BizStep("save.DO")
+            .handler(selfInvoker("onSave"))
+            .freeze();
+
+        @OnEvent(event="save")
+        private BizStep onSave(final URI uri, final CompositeBitmap bitmap) throws Exception {
+            Bitmaps.saveBitmapToDisk(uri.toASCIIString(), bitmap, _diskCache);
+            return null;
+        }
+
+        @Override
+        public ArgsHandler getArgsHandler() {
+            return ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD;
+        }
+    }
+    
+    @Override
+    public CompositeBitmap tryRetainFromMemoryAndAsyncSaveToDisk(final URI uri) {
+        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(uri.toASCIIString());
+        if ( null == bitmap ) {
+            //  not found from memory cache
+            return null;
+        }
+        
+        try {
+            final SaveFlow flow = new SaveFlow();
+            this._source.create(flow, flow.DO).acceptEvent("save", uri, bitmap);
+        } catch (Throwable e) {
+            LOG.warn("exception when exec save event for uri({}), detail:{}", 
+                    uri, ExceptionUtils.exception2detail(e));
+        }
+
+        return bitmap;
+    }
+    
     private final class RemoveFlow extends AbstractFlow<RemoveFlow> {
         final BizStep DO = new BizStep("remove.DO")
             .handler(selfInvoker("onRemove"))
@@ -65,25 +104,25 @@ class BitmapAgentImpl implements BitmapAgent {
 
         @OnEvent(event="remove")
         private BizStep onRemove(final URI uri) throws Exception {
-            
-            if ( _diskCache.remove(Md5.encode(uri.toASCIIString())) ) {
-                if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("BitmapAgent: remove bitmap for uri({}) from diskcache succeed.", uri);
+            if ( null != _diskCache ) {
+                if ( _diskCache.remove(Md5.encode(uri.toASCIIString())) ) {
+                    if ( LOG.isTraceEnabled() ) {
+                        LOG.trace("BitmapAgent: remove bitmap for uri({}) from diskcache succeed.", uri);
+                    }
                 }
-            }
-            else {
-                LOG.warn("BitmapAgent: remove bitmap for uri({}) from diskcache failed.", uri);
+                else {
+                    LOG.warn("BitmapAgent: remove bitmap for uri({}) from diskcache failed.", uri);
+                }
             }
             return null;
         }
     }
     
     public void removeBitmap(final URI uri, final boolean alsoRemoveFromMemory) {
-        final RemoveFlow flow = new RemoveFlow();
-        
         try {
+            final RemoveFlow flow = new RemoveFlow();
             this._source.create(flow, flow.DO).acceptEvent("remove", uri);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("exception when exec remove event for uri({}), detail:{}", 
                     uri, ExceptionUtils.exception2detail(e));
         }

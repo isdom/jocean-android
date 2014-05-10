@@ -1,22 +1,30 @@
 package org.jocean.android.bitmap;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.jocean.event.api.EventReceiverSource;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.ReferenceCounted;
 import org.jocean.idiom.pool.ObjectPool.Ref;
 import org.jocean.rosa.api.BlobAgent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jakewharton.disklrucache.DiskLruCache;
+import com.jakewharton.disklrucache.DiskLruCache.Editor;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 
 public abstract class Bitmaps {
+    
+    private static final Logger LOG = LoggerFactory
+            .getLogger(Bitmaps.class);
     
     public static BitmapsPool createBitmapsPool(final int w, final int h, final Bitmap.Config config) {
         return new CachedBitmapsPool(w, h, config);
@@ -80,5 +88,50 @@ public abstract class Bitmaps {
         finally {
             ReferenceCounted.Utils.releaseAllAndClear(blocks);
         }
+    }
+    
+    static String saveBitmapToDisk(final String key, final CompositeBitmap bitmap, final DiskLruCache diskCache ) {
+        try {
+            if ( null != diskCache ) {
+                final String diskCacheKey = Md5.encode(key);
+                if ( null != diskCache.get(diskCacheKey)) {
+                    if ( LOG.isTraceEnabled() ) {
+                        LOG.trace("bitmap({}) has already save to disk", bitmap);
+                    }
+                    return genCacheFilename(diskCache, diskCacheKey);
+                }
+                else {
+                    final Editor editor = diskCache.edit(diskCacheKey);
+                    OutputStream os = null;
+                    if ( null != editor ) {
+                        try {
+                            os = editor.newOutputStream(0);
+                            bitmap.encodeTo(os);
+                            return genCacheFilename(diskCache, diskCacheKey);
+                        }
+                        finally {
+                            editor.commit();
+                            if ( null != os ) {
+                                os.close();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (final Throwable e) {
+            LOG.warn("exception while saving bitmap ({}) to disk, detail:{}", 
+                    bitmap, ExceptionUtils.exception2detail(e));
+        }
+        if ( LOG.isTraceEnabled() ) {
+            LOG.trace("failed to save bitmap({}) to disk", bitmap);
+        }
+        return null;
+    }
+
+    private static String genCacheFilename(
+            final DiskLruCache diskCache,
+            final String diskCacheKey) {
+        return diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0";
     }
 }
