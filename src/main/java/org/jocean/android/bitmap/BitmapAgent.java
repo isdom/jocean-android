@@ -16,6 +16,12 @@ import org.jocean.rosa.api.TransactionPolicy;
  */
 public interface BitmapAgent {
     
+    public static class Utils {
+        public static String getPersistFilenameOf(final CompositeBitmap bitmap) {
+            return bitmap.getProperty(KEYS.PERSIST_FILENAME);
+        }
+    }
+    
     public static class KEYS {
         public static final String PERSIST_FILENAME = "_persist_filename";
     }
