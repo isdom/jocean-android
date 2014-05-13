@@ -38,6 +38,12 @@ public interface BitmapAgent {
                 final CTX ctx,
                 final BitmapInMemoryReactor<CTX> reactor);
         
+        public <CTX> void loadFromCacheOnly(
+                final URI uri, 
+                final CTX ctx,
+                final BitmapInCacheReactor<CTX> reactor, 
+                final PropertiesInitializer<Object> initializer);
+        
         public <CTX> void loadAnyway(
                 final URI uri, 
                 final CTX ctx,
@@ -56,6 +62,19 @@ public interface BitmapAgent {
          * @throws Exception
          */
         public void onLoadFromMemoryResult(final CTX ctx, final CompositeBitmap bitmap)
+            throws Exception;
+    }
+    
+    public interface BitmapInCacheReactor<CTX> {
+        
+        /**
+         * load bitmap from cache's result
+         * @param ctx
+         * @param bitmap  != null means load succeed, otherwise means bitmap not in cache(memory or disk)
+         *                          should download from network
+         * @throws Exception
+         */
+        public void onLoadFromCacheResult(final CTX ctx, final CompositeBitmap bitmap, final boolean inMemoryCache)
             throws Exception;
     }
     

@@ -3,11 +3,13 @@
  */
 package org.jocean.android.bitmap;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jocean.android.bitmap.BitmapAgent.BitmapInCacheReactor;
 import org.jocean.android.bitmap.BitmapAgent.BitmapInMemoryReactor;
 import org.jocean.android.bitmap.BitmapAgent.BitmapReactor;
 import org.jocean.android.bitmap.BitmapAgent.PropertiesInitializer;
@@ -73,6 +75,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     
 	public final BizStep WAIT = new BizStep("bitmap.WAIT")
             .handler(selfInvoker("onLoadFromMemoryOnly"))
+            .handler(selfInvoker("onLoadFromCacheOnly"))
 			.handler(selfInvoker("onLoadAnyway"))
 			.handler(selfInvoker("onDetach"))
 			.freeze();
@@ -128,6 +131,56 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         return null;
 	}
 	
+    @OnEvent(event = "loadFromCacheOnly")
+    private BizStep onLoadFromCacheOnly(
+            final URI uri,
+            final Object ctx,
+            final BitmapInCacheReactor<Object> reactor, 
+            final PropertiesInitializer<Object> initializer) {
+        final String key = uri.toASCIIString();
+        CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
+        
+        final boolean inMemoryCache = ( null != bitmap );
+        if ( null == bitmap ) {
+            final String diskCacheKey = Md5.encode(key);
+            final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
+            InputStream is = null;
+            if ( null != snapshot ) {
+                try {
+                    is = snapshot.getInputStream(0);
+                    if ( null != is ) {
+                        bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, is, initializer);
+                    }
+                }
+                finally {
+                    if ( null != is ) {
+                        try {
+                            is.close();
+                        }
+                        catch (Throwable e) {
+                        }
+                    }
+                    snapshot.close();
+                }
+            }
+        }
+        
+        try {
+            reactor.onLoadFromCacheResult(ctx, bitmap, inMemoryCache);
+        }
+        catch (Throwable e) {
+            LOG.warn("exception when BitmapInCacheReactor.onLoadFromCacheResult for ctx({})/key({}), detail:{}",
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+        finally {
+            if ( null != bitmap ) {
+                bitmap.release();
+            }
+        }
+                
+        return null;
+    }
+    
     @OnEvent(event = "loadAnyway")
 	private BizStep onLoadAnyway(
 	        final URI uri,
@@ -165,6 +218,62 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         
 		return OBTAINING;
 	}
+
+    /**
+     * @param key
+     * @param ctx
+     * @param reactor
+     * @param initializer
+     * @throws Exception
+     * @throws IOException
+     */
+    private boolean tryLoadFromDiskCache(
+            final String key, 
+            final Object ctx,
+            final BitmapReactor<Object> reactor,
+            final PropertiesInitializer<Object> initializer) 
+        throws Exception {
+        final String diskCacheKey = Md5.encode(key);
+        final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
+        InputStream is = null;
+        if ( null != snapshot ) {
+            try {
+                is = snapshot.getInputStream(0);
+                if ( null != is ) {
+                    try {
+                        reactor.onStartLoadFromDisk(ctx);
+                    }
+                    catch (Throwable e) {
+                        LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
+                                ctx, key, ExceptionUtils.exception2detail(e));
+                    }
+                    
+                    final CompositeBitmap bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, is, initializer);
+                    
+                    if ( null != bitmap ) {
+                        try {
+                            reactor.onBitmapCached(ctx, bitmap, false);
+                        }
+                        catch (Throwable e) {
+                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
+                                    ctx, key, ExceptionUtils.exception2detail(e));
+                        }
+                        finally {
+                            bitmap.release();
+                        }
+                        return true;
+                    }
+                }
+            }
+            finally {
+                if ( null != is ) {
+                    is.close();
+                }
+                snapshot.close();
+            }
+        }
+        return false;
+    }
 
     @OnEvent(event = "onTransportActived")
     public BizStep onTransportActived() throws Exception {
@@ -300,6 +409,19 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         }
     }
 
+    private Snapshot getSnapshotFromDiskCache(final String diskCacheKey) {
+        try {
+            if ( null != this._diskCache ) {
+                return this._diskCache.get(diskCacheKey);
+            }
+        }
+        catch (Throwable e) {
+            LOG.warn("exception when LruDiskCache.get Snapshot for diskCacheKey({}), detail:{}",
+                    diskCacheKey, ExceptionUtils.exception2detail(e));
+        }
+        return null;
+    }
+    
     /**
      * @param key
      * @param ctx
@@ -307,61 +429,35 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
      * @param initializer 
      * @throws Exception
      */
-    private boolean tryLoadFromDiskCache(
+    private CompositeBitmap tryRetainFromDiskCache(
             final String key, 
+            final String diskCacheKey,
             final Object ctx,
-            final BitmapReactor<Object> reactor, 
-            final PropertiesInitializer<Object> initializer) 
-        throws Exception {
-        if ( null != this._diskCache ) {
-            final String diskCacheKey = Md5.encode(key);
-            final Snapshot snapshot = this._diskCache.get(diskCacheKey);
-            if ( null != snapshot ) {
-                try {
-                    final InputStream is = snapshot.getInputStream(0);
-                    if ( null != is ) {
-                        try {
-                            reactor.onStartLoadFromDisk(ctx);
-                        }
-                        catch (Exception e) {
-                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
-                                    ctx, key, ExceptionUtils.exception2detail(e));
-                        }
-                        
-                        final Map<String, Object> toinit = new HashMap<String, Object>();
-                        safeInitProperties(ctx, key, initializer, toinit);
-                        
-                        toinit.put(BitmapAgent.KEYS.PERSIST_FILENAME, 
-                                this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
-                        
-                        final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool, toinit);
-                        if ( null != bitmap ) {
-                            try {
-                                if ( LOG.isTraceEnabled() ) {
-                                    LOG.trace("onLoadAnyway: load CompositeBitmap({}) from disk for ctx({})/key({})", 
-                                            bitmap, ctx, key);
-                                }
-                                putToMemoryCache(key, bitmap);
-                                try {
-                                    reactor.onBitmapCached(ctx, bitmap, false);
-                                }
-                                catch (Exception e) {
-                                    LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
-                                            ctx, key, ExceptionUtils.exception2detail(e));
-                                }
-                                return true;
-                            }
-                            finally {
-                                bitmap.release();
-                            }
-                        }
-                    }
-                }finally {
-                    snapshot.close();
+            final InputStream is,
+            final PropertiesInitializer<Object> initializer)  {
+        final Map<String, Object> toinit = new HashMap<String, Object>();
+        safeInitProperties(ctx, key, initializer, toinit);
+        
+        toinit.put(BitmapAgent.KEYS.PERSIST_FILENAME, 
+                this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
+        
+        try {
+            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool, toinit);
+            
+            if ( null != bitmap ) {
+                if ( LOG.isTraceEnabled() ) {
+                    LOG.trace("tryLoadFromDiskCache: load CompositeBitmap({}) from disk for ctx({})/key({})", 
+                            bitmap, ctx, key);
                 }
+                putToMemoryCache(key, bitmap);
             }
+            return bitmap;
         }
-        return false;
+        catch (Throwable e) {
+            LOG.warn("exception when decodeFrom for ctx({})/key({}), detail:{}", 
+                ctx, key, ExceptionUtils.exception2detail(e));
+        }
+        return null;
     }
 
     /**
@@ -378,7 +474,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             try {
                 initializer.visit(ctx, toinit);
             }
-            catch (Exception e) {
+            catch (Throwable e) {
                 LOG.warn("exception when ctx({})/key({})'s initializer({}).visit, detail:{}", 
                         ctx, key, initializer, ExceptionUtils.exception2detail(e));
             }
