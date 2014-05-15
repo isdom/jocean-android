@@ -23,8 +23,8 @@ import org.jocean.idiom.ArgsHandlerSource;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.block.Blob;
 import org.jocean.rosa.api.BlobAgent;
-import org.jocean.rosa.api.BlobReactor;
-import org.jocean.rosa.api.BlobTransaction;
+import org.jocean.rosa.api.BlobAgent.BlobReactor;
+import org.jocean.rosa.api.BlobAgent.BlobTransaction;
 import org.jocean.rosa.api.TransactionConstants;
 import org.jocean.rosa.api.TransactionPolicy;
 import org.slf4j.Logger;
@@ -205,7 +205,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         this._ctx = ctx;
         this._bitmapReactor = reactor;
         this._blobTransaction = this._blobAgent.createBlobTransaction();
-        this._blobTransaction.start(uri, this.queryInterfaceInstance(BlobReactor.class), policy);
+        this._blobTransaction.start(uri, null, genBlobReactor(), policy);
         this._propertiesInitializer = initializer;
         
         try {
@@ -218,6 +218,11 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         
 		return OBTAINING;
 	}
+
+    @SuppressWarnings("unchecked")
+    private BlobReactor<Object> genBlobReactor() {
+        return (BlobReactor<Object>)this.queryInterfaceInstance(BlobReactor.class);
+    }
 
     /**
      * @param key
@@ -276,7 +281,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onTransportActived")
-    public BizStep onTransportActived() throws Exception {
+    public BizStep onTransportActived(final Object obj) throws Exception {
         try {
             this._bitmapReactor.onTransportActived(this._ctx);
         }
@@ -288,7 +293,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onTransportInactived")
-    public BizStep onTransportInactived() throws Exception {
+    public BizStep onTransportInactived(final Object obj) throws Exception {
         try {
             this._bitmapReactor.onTransportInactived(this._ctx);
         }
@@ -300,7 +305,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onContentTypeReceived")
-    public BizStep onContentTypeReceived(final String contentType)
+    public BizStep onContentTypeReceived(final Object obj, final String contentType)
             throws Exception {
         try {
             this._bitmapReactor.onContentTypeReceived(this._ctx, contentType);
@@ -313,7 +318,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onProgress")
-    public BizStep onProgress(final long currentByteSize, final long totalByteSize)
+    public BizStep onProgress(final Object obj, final long currentByteSize, final long totalByteSize)
             throws Exception {
         try {
             this._bitmapReactor.onProgress(this._ctx, currentByteSize, totalByteSize);
@@ -326,7 +331,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onBlobReceived")
-    public BizStep onBlobReceived(final Blob blob) throws Exception {
+    public BizStep onBlobReceived(final Object obj, final Blob blob) throws Exception {
         final InputStream is = blob.genInputStream();
         try {
             final Map<String, Object> toinit = new HashMap<String, Object>();
@@ -371,7 +376,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     }
 
     @OnEvent(event = "onTransactionFailure")
-    public BizStep onTransactionFailure(int failureReason)
+    public BizStep onTransactionFailure(final Object obj, int failureReason)
             throws Exception {
         this.setFailureReason(failureReason);
         return null;

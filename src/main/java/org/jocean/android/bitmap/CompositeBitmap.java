@@ -122,6 +122,7 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         return total;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> V getProperty(final String key) {
         return (V)this._properties.get(key);
