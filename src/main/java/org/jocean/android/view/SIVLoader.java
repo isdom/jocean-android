@@ -235,7 +235,7 @@ public class SIVLoader {
                 ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD);
     }
     
-    public void onBitmapDecodeFailed(final SmartImageView view, final URI uri) {
+    private void onBitmapDecodeFailed(final SmartImageView view, final URI uri) {
         if (this._currentRetryCount++ < MAX_RETRYCOUNT) {
             LOG.warn("onTransactionFailure: uri({}) decode bitmap failed , current retry count {}, try re-load.",
                     uri, this._currentRetryCount);
