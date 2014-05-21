@@ -45,8 +45,8 @@
 		<dependency org="org.slf4j" name="slf4j-api" rev="1.7.6" 
             conf="compile->default(*)" />
 		
-        <dependency org="org.jocean" name="jocean-idiom" rev="0.0.8" 
-            conf="compile->default(*)"/>
+        <dependency org="org.jocean" name="jocean-idiom" rev="0.0.9-SNAPSHOT" 
+            conf="compile->default(*)" changing="true"/>
 					
         <dependency org="org.jocean" name="jocean-event-api" rev="0.0.2" 
             conf="compile->default(*)"/>
@@ -63,11 +63,12 @@
         <dependency org="ar.com.hjg" name="pngj" rev="2.0.1" 
             conf="compile->default(*)"/>
         
-        <dependency org="com.google.android" name="android" rev="2.3.3" 
+<!--         <dependency org="com.google.android" name="android" rev="2.3.3" 
             conf="compile->default(*)" transitive="false"/>
-        
-<!--         <dependency org="com.google.android" name="android" rev="4.0.1.2" />
  -->        
+        <dependency org="com.google.android" name="android" rev="4.0.1.2" 
+            conf="compile->default(*)" transitive="false"/>
+         
         <dependency org="com.google.android" name="support-v4" rev="r7" 
             conf="compile->default(*)" />
 

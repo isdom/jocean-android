@@ -10,9 +10,12 @@ import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventReceiverSource;
 import org.jocean.event.api.annotation.OnEvent;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.idiom.pool.BytesPool;
 import org.jocean.rosa.api.BlobAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import android.graphics.Bitmap;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 
@@ -26,8 +29,9 @@ class BitmapAgentImpl implements BitmapAgent {
             .getLogger(BitmapAgentImpl.class);
 
     public BitmapAgentImpl(
+            final BytesPool bytesPool,
             final EventReceiverSource source,
-            final BitmapsPool pool, 
+            final Bitmap.Config config,
             final BlobAgent blobAgent,
             final CompositeBitmapCache memoryCache,
             final DiskLruCache diskCache
@@ -35,8 +39,9 @@ class BitmapAgentImpl implements BitmapAgent {
         if ( null == memoryCache ) {
             throw new NullPointerException("memoryCache must be not null.");
         }
+        this._bytesPool = bytesPool;
         this._source = source;
-        this._pool = pool;
+        this._config = config;
         this._blobAgent = blobAgent;
         this._memoryCache = memoryCache;
         this._diskCache = diskCache;
@@ -46,8 +51,11 @@ class BitmapAgentImpl implements BitmapAgent {
     public BitmapTransaction createBitmapTransaction() {
         final BitmapTransactionFlow flow = 
             new BitmapTransactionFlow(
-                    this._pool, this._blobAgent, 
-                    this._memoryCache, this._diskCache);
+                    this._bytesPool,
+                    this._config, 
+                    this._blobAgent, 
+                    this._memoryCache, 
+                    this._diskCache);
         _source.create(flow, flow.WAIT);
         
         return flow.queryInterfaceInstance(BitmapTransaction.class);
@@ -93,7 +101,8 @@ class BitmapAgentImpl implements BitmapAgent {
         }
     }
     
-    private final BitmapsPool _pool;
+    private final BytesPool _bytesPool;
+    private final Bitmap.Config _config;
     private final BlobAgent _blobAgent;
     private final CompositeBitmapCache _memoryCache;
     private final DiskLruCache _diskCache;

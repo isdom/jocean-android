@@ -17,6 +17,7 @@ import org.jocean.idiom.ArgsHandler;
 import org.jocean.idiom.Detachable;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.ExectionLoop;
+import org.jocean.idiom.Function;
 import org.jocean.idiom.InterfaceUtils;
 import org.jocean.rosa.api.TransactionPolicy;
 import org.slf4j.Logger;
@@ -24,8 +25,12 @@ import org.slf4j.LoggerFactory;
 
 import android.graphics.drawable.Drawable;
 
-
 public class SIVLoader {
+    public static class Context {
+        public URI _uri;
+        public SmartImageView _view;
+    }
+    
     private static final Logger LOG = LoggerFactory.getLogger(
             SIVLoader.class);
 
@@ -39,11 +44,15 @@ public class SIVLoader {
 
     protected final ExectionLoop _uiloop;
 
+    private final Function<Context, BitmapReactor<SmartImageView>> _reactorFactory;
 
-    public SIVLoader(final BitmapAgent bitmapAgent, final ExectionLoop uiloop) {
+
+    public SIVLoader(final BitmapAgent bitmapAgent, final ExectionLoop uiloop, 
+            final Function<Context,BitmapReactor<SmartImageView>> reactorFactory ) {
 
         this._bitmapAgent = bitmapAgent;
         this._uiloop = uiloop;
+        this._reactorFactory = reactorFactory;
     }
 
     public boolean checkAndTryLoadBitmapFromMemory(final SIVHolder holder) {
@@ -147,7 +156,7 @@ public class SIVLoader {
             transaction.loadAnyway(
                     uri,
                     view,
-                    genFetchBitmapReactor(uri, transaction),
+                    genFetchBitmapReactor(uri, transaction, view),
                     new PropertiesInitializer<SmartImageView> () {
                         @Override
                         public void visit(final SmartImageView view,
@@ -165,7 +174,8 @@ public class SIVLoader {
     @SuppressWarnings("unchecked")
     private BitmapReactor<SmartImageView> genFetchBitmapReactor(
             final URI uri, 
-            final BitmapTransaction transaction) {
+            final BitmapTransaction transaction, 
+            final SmartImageView view) {
         final class BitmapReactorImpl implements BitmapReactor<SmartImageView> {
             
             @Override
@@ -228,11 +238,28 @@ public class SIVLoader {
             public void onStartDownload(
                     final SmartImageView view) throws Exception {
             }
-
         }
-        return (BitmapReactor<SmartImageView>)InterfaceUtils.genAsyncImpl(
-                BitmapReactor.class, new BitmapReactorImpl(), this._uiloop, 
-                ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD);
+        
+        final BitmapReactor<SmartImageView> downloadReactor = 
+                (BitmapReactor<SmartImageView>)InterfaceUtils.genAsyncImpl(
+                    BitmapReactor.class, new BitmapReactorImpl(), this._uiloop, 
+                    ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD);
+                
+        BitmapReactor<SmartImageView> reactor = null;
+        
+        if ( null != this._reactorFactory ) {
+            Context ctx = new Context();
+            ctx._uri = uri;
+            ctx._view = view;
+            reactor = this._reactorFactory.apply(ctx);
+        }
+        if ( null != reactor ) {
+            return (BitmapReactor<SmartImageView>)InterfaceUtils.combineImpls(
+                    BitmapReactor.class, downloadReactor, reactor);
+        }
+        else {
+            return downloadReactor;
+        }
     }
     
     private void onBitmapDecodeFailed(final SmartImageView view, final URI uri) {

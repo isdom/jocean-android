@@ -22,6 +22,8 @@ import org.jocean.idiom.ArgsHandler;
 import org.jocean.idiom.ArgsHandlerSource;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.block.Blob;
+import org.jocean.idiom.block.BlockUtils;
+import org.jocean.idiom.pool.BytesPool;
 import org.jocean.rosa.api.BlobAgent;
 import org.jocean.rosa.api.BlobAgent.BlobReactor;
 import org.jocean.rosa.api.BlobAgent.BlobTransaction;
@@ -29,6 +31,8 @@ import org.jocean.rosa.api.TransactionConstants;
 import org.jocean.rosa.api.TransactionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import android.graphics.Bitmap;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import com.jakewharton.disklrucache.DiskLruCache.Snapshot;
@@ -44,11 +48,13 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
 			.getLogger(BitmapTransactionFlow.class);
 
     public BitmapTransactionFlow(
-            final BitmapsPool pool,
+            final BytesPool bytesPool,
+            final Bitmap.Config config,
             final BlobAgent blobAgent,
             final CompositeBitmapCache memoryCache,
             final DiskLruCache diskCache) {
-        this._bitmapsPool = pool;
+        this._bytesPool = bytesPool;
+        this._config = config;
         this._blobAgent = blobAgent;
         this._memoryCache = memoryCache;
         this._diskCache = diskCache;
@@ -144,15 +150,25 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         if ( null == bitmap ) {
             final String diskCacheKey = Md5.encode(key);
             final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
-            InputStream is = null;
+            InputStream is = null, bytesIs = null;
             if ( null != snapshot ) {
                 try {
                     is = snapshot.getInputStream(0);
                     if ( null != is ) {
-                        bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, is, initializer);
+                        bytesIs = BlockUtils.inputStream2BytesListInputStream(is, this._bytesPool);
+                        if ( null != bytesIs ) {
+                            bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, bytesIs, initializer);
+                        }
                     }
                 }
                 finally {
+                    if ( null != bytesIs ) {
+                        try {
+                            bytesIs.close();
+                        }
+                        catch (Throwable e) {
+                        }
+                    }
                     if ( null != is ) {
                         try {
                             is.close();
@@ -240,39 +256,53 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         throws Exception {
         final String diskCacheKey = Md5.encode(key);
         final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
-        InputStream is = null;
+        InputStream is = null, bytesIs = null;
         if ( null != snapshot ) {
             try {
                 is = snapshot.getInputStream(0);
                 if ( null != is ) {
-                    try {
-                        reactor.onStartLoadFromDisk(ctx);
-                    }
-                    catch (Throwable e) {
-                        LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
-                                ctx, key, ExceptionUtils.exception2detail(e));
-                    }
-                    
-                    final CompositeBitmap bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, is, initializer);
-                    
-                    if ( null != bitmap ) {
+                    bytesIs = BlockUtils.inputStream2BytesListInputStream(is, this._bytesPool);
+                    if ( null != bytesIs ) {
                         try {
-                            reactor.onBitmapCached(ctx, bitmap, false);
+                            reactor.onStartLoadFromDisk(ctx);
                         }
                         catch (Throwable e) {
-                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
+                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
                                     ctx, key, ExceptionUtils.exception2detail(e));
                         }
-                        finally {
-                            bitmap.release();
+                        
+                        final CompositeBitmap bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, bytesIs, initializer);
+                        
+                        if ( null != bitmap ) {
+                            try {
+                                reactor.onBitmapCached(ctx, bitmap, false);
+                            }
+                            catch (Throwable e) {
+                                LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
+                                        ctx, key, ExceptionUtils.exception2detail(e));
+                            }
+                            finally {
+                                bitmap.release();
+                            }
+                            return true;
                         }
-                        return true;
                     }
                 }
             }
             finally {
+                if ( null != bytesIs ) {
+                    try {
+                        bytesIs.close();
+                    }
+                    catch (Throwable e) {
+                    }
+                }
                 if ( null != is ) {
-                    is.close();
+                    try {
+                        is.close();
+                    }
+                    catch (Throwable e) {
+                    }
                 }
                 snapshot.close();
             }
@@ -336,8 +366,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         try {
             final Map<String, Object> toinit = new HashMap<String, Object>();
             safeInitProperties(this._ctx, this._key, this._propertiesInitializer, toinit);
-            final CompositeBitmap bitmap = Bitmaps.decodeStreamAsBlocks(
-                    this._bitmapsPool, is, toinit);
+            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._config, toinit);
             if ( null != bitmap ) {
                 try {
                     putToMemoryCache(this._key, bitmap);
@@ -447,7 +476,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 this._diskCache.getDirectory().getAbsolutePath() + "/" + diskCacheKey + ".0");
         
         try {
-            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._bitmapsPool, toinit);
+            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._config, toinit);
             
             if ( null != bitmap ) {
                 if ( LOG.isTraceEnabled() ) {
@@ -543,8 +572,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 + _blobTransaction + "]";
     }
 
+    private final BytesPool _bytesPool;
     private final BlobAgent _blobAgent;
-    private final BitmapsPool _bitmapsPool;
+    private final Bitmap.Config _config;
     private final CompositeBitmapCache _memoryCache;
     private final DiskLruCache _diskCache;
     private int _failureReason = TransactionConstants.FAILURE_UNKNOWN;

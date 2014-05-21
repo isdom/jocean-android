@@ -178,6 +178,7 @@ public class ShowProgressFlow extends AbstractFlow<ShowProgressFlow> {
 	        canvas.drawText(text, x, y, paint);
 	    }
 	    else {
+	        /*
 	        final Ref<BitmapBlock> block = this._pool.retainObject();
 	        
 	        try {
@@ -188,6 +189,7 @@ public class ShowProgressFlow extends AbstractFlow<ShowProgressFlow> {
 	        finally {
 	            block.release();
 	        }
+	        */
 	    }
     }
 
@@ -262,9 +264,8 @@ public class ShowProgressFlow extends AbstractFlow<ShowProgressFlow> {
 		return this.currentEventHandler();
 	}
 	
-	public ShowProgressFlow(final BitmapsPool pool, final Context context, final URI uri) {
+	public ShowProgressFlow(final Context context, final URI uri) {
 		this._uri = uri;
-		this._pool = pool;
 		
 		this.paint.setAntiAlias(true); // 消除锯齿
 
@@ -278,8 +279,7 @@ public class ShowProgressFlow extends AbstractFlow<ShowProgressFlow> {
 	private final URI _uri;
 	private long _contentLength = -1;
 	private long _progress = 0;
-	private final BitmapsPool _pool;
-	private final boolean drawTextByOffCanvas = (android.os.Build.VERSION.SDK_INT >= 11);
+	private final boolean drawTextByOffCanvas = false; //(android.os.Build.VERSION.SDK_INT >= 11);
 	
 	/**
 	 * 根据手机的分辨率从 dp 的单位 转成为 px(像素)
