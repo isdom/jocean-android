@@ -64,6 +64,10 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         }
     }
 
+    Bitmap getBitmap() {
+        return this._bitmap;
+    }
+    
     /*
     @JSONCreator
     private CompositeBitmap(

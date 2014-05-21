@@ -67,7 +67,7 @@
             conf="compile->default(*)" transitive="false"/>
  -->        
         <dependency org="com.google.android" name="android" rev="4.0.1.2" 
-            conf="compile->default(*)" transitive="false"/>
+            conf="compile->default(*)"/>
          
         <dependency org="com.google.android" name="support-v4" rev="r7" 
             conf="compile->default(*)" />

@@ -23,16 +23,17 @@ import org.jocean.rosa.api.TransactionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 
 public class SIVLoader {
-    public static class Context {
+    public static class SIVContext {
         public URI _uri;
         public SmartImageView _view;
     }
     
-    private static final Logger LOG = LoggerFactory.getLogger(
-            SIVLoader.class);
+    private static final Logger LOG = 
+            LoggerFactory.getLogger(SIVLoader.class);
 
     private static final String _PROPERTY_SOURCE_URI = "_src_uri";
     private static final long DELAY_FOR_NEXT_LOAD = 100;
@@ -44,12 +45,12 @@ public class SIVLoader {
 
     protected final ExectionLoop _uiloop;
 
-    private final Function<Context, BitmapReactor<SmartImageView>> _reactorFactory;
+    private final Function<SIVContext, BitmapReactor<SmartImageView>> _reactorFactory;
 
-
-    public SIVLoader(final BitmapAgent bitmapAgent, final ExectionLoop uiloop, 
-            final Function<Context,BitmapReactor<SmartImageView>> reactorFactory ) {
-
+    public SIVLoader(
+            final Context ctx, final BitmapAgent bitmapAgent, final ExectionLoop uiloop, 
+            final Function<SIVContext,BitmapReactor<SmartImageView>> reactorFactory ) {
+        this._context = ctx;
         this._bitmapAgent = bitmapAgent;
         this._uiloop = uiloop;
         this._reactorFactory = reactorFactory;
@@ -92,7 +93,8 @@ public class SIVLoader {
         try {
             bitmap = this._bitmapAgent.tryRetainFromMemorySync(new URI(holder._url));
             if ( null != bitmap ) {
-                holder._view.replaceDrawable(new CompositeBitmapDrawable(bitmap));
+                holder._view.replaceDrawable(
+                        new CompositeBitmapDrawable(this._context.getResources(), bitmap));
                 return true;
             }
         } catch (URISyntaxException e) {
@@ -248,7 +250,7 @@ public class SIVLoader {
         BitmapReactor<SmartImageView> reactor = null;
         
         if ( null != this._reactorFactory ) {
-            Context ctx = new Context();
+            SIVContext ctx = new SIVContext();
             ctx._uri = uri;
             ctx._view = view;
             reactor = this._reactorFactory.apply(ctx);
@@ -287,7 +289,8 @@ public class SIVLoader {
             if ( LOG.isTraceEnabled() ) {
                 LOG.trace("setBitmapToView: SmartImageView({}) will be set by bitmap({}) for uri({})", view, bitmap, uri);
             }
-            view.replaceDrawable(new CompositeBitmapDrawable(bitmap));
+            view.replaceDrawable(
+                    new CompositeBitmapDrawable(this._context.getResources(), bitmap));
         }
         else {
             if ( LOG.isTraceEnabled() ) {
@@ -352,6 +355,7 @@ public class SIVLoader {
         this._isBusy = false;
     }
 
+    private final Context _context;
     private volatile boolean _isBusy = false;
     
     private boolean _forceLoadBitmaps = true;
