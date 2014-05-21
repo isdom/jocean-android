@@ -114,13 +114,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         final String key = uri.toASCIIString();
         
         final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
-        try {
-            reactor.onLoadFromMemoryResult(ctx, bitmap);
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapInMemoryReactor.onLoadFromMemoryResult, detail:{}", 
-                    ctx, key, ExceptionUtils.exception2detail(e));
-        }
+        safeNotifyOnLoadFromMemory(ctx, key, reactor, bitmap);
         if ( null != bitmap ) {
             if ( LOG.isTraceEnabled() ) {
                 LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
@@ -136,7 +130,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         }
         return null;
 	}
-	
+
     @OnEvent(event = "loadFromCacheOnly")
     private BizStep onLoadFromCacheOnly(
             final URI uri,
@@ -182,11 +176,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         }
         
         try {
-            reactor.onLoadFromCacheResult(ctx, bitmap, inMemoryCache);
-        }
-        catch (Throwable e) {
-            LOG.warn("exception when BitmapInCacheReactor.onLoadFromCacheResult for ctx({})/key({}), detail:{}",
-                    ctx, key, ExceptionUtils.exception2detail(e));
+            safeNotifyOnLoadFromCache(ctx, key, reactor, bitmap, inMemoryCache);
         }
         finally {
             if ( null != bitmap ) {
@@ -224,13 +214,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         this._blobTransaction.start(uri, null, genBlobReactor(), policy);
         this._propertiesInitializer = initializer;
         
-        try {
-            this._bitmapReactor.onStartDownload( this._ctx);
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartDownload, detail:{}", 
-                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
-        }
+        safeNotifyOnStartDownload(this._ctx, this._key, this._bitmapReactor);
         
 		return OBTAINING;
 	}
@@ -263,23 +247,13 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 if ( null != is ) {
                     bytesIs = BlockUtils.inputStream2BytesListInputStream(is, this._bytesPool);
                     if ( null != bytesIs ) {
-                        try {
-                            reactor.onStartLoadFromDisk(ctx);
-                        }
-                        catch (Throwable e) {
-                            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
-                                    ctx, key, ExceptionUtils.exception2detail(e));
-                        }
+                        safeNotifyOnStartLoadFromDisk(ctx, key, reactor);
                         
                         final CompositeBitmap bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, bytesIs, initializer);
                         
                         if ( null != bitmap ) {
                             try {
-                                reactor.onBitmapCached(ctx, bitmap, false);
-                            }
-                            catch (Throwable e) {
-                                LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
-                                        ctx, key, ExceptionUtils.exception2detail(e));
+                                safeNotifyOnBitmapCached(ctx, key, reactor, bitmap);
                             }
                             finally {
                                 bitmap.release();
@@ -313,7 +287,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     @OnEvent(event = "onTransportActived")
     public BizStep onTransportActived(final Object obj) throws Exception {
         try {
-            this._bitmapReactor.onTransportActived(this._ctx);
+            if (null!=this._bitmapReactor) {
+                this._bitmapReactor.onTransportActived(this._ctx);
+            }
         }
         catch (Exception e) {
             LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportActived, detail:{}", 
@@ -325,7 +301,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     @OnEvent(event = "onTransportInactived")
     public BizStep onTransportInactived(final Object obj) throws Exception {
         try {
-            this._bitmapReactor.onTransportInactived(this._ctx);
+            if (null!=this._bitmapReactor) {
+                this._bitmapReactor.onTransportInactived(this._ctx);
+            }
         }
         catch (Exception e) {
             LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportInactived, detail:{}", 
@@ -338,7 +316,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     public BizStep onContentTypeReceived(final Object obj, final String contentType)
             throws Exception {
         try {
-            this._bitmapReactor.onContentTypeReceived(this._ctx, contentType);
+            if (null!=this._bitmapReactor) {
+                this._bitmapReactor.onContentTypeReceived(this._ctx, contentType);
+            }
         }
         catch (Exception e) {
             LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onContentTypeReceived, detail:{}", 
@@ -351,7 +331,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
     public BizStep onProgress(final Object obj, final long currentByteSize, final long totalByteSize)
             throws Exception {
         try {
-            this._bitmapReactor.onProgress(this._ctx, currentByteSize, totalByteSize);
+            if (null!=this._bitmapReactor) {
+                this._bitmapReactor.onProgress(this._ctx, currentByteSize, totalByteSize);
+            }
         }
         catch (Exception e) {
             LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onProgress, detail:{}", 
@@ -381,7 +363,9 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 final BitmapReactor<Object> reactor = this._bitmapReactor;
                 this._bitmapReactor = null;
                 try {
-                    reactor.onBitmapReceived(this._ctx, bitmap);
+                    if (null!=reactor) {
+                        reactor.onBitmapReceived(this._ctx, bitmap);
+                    }
                 }
                 catch (Exception e) {
                     LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapReceived, detail:{}", 
@@ -422,12 +406,14 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             final BitmapReactor<Object> reactor) {
         final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
         if ( null != bitmap ) {
+            if ( LOG.isTraceEnabled() ) {
+                LOG.trace("onLoadAnyway: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
+                        bitmap, ctx, key);
+            }
             try {
-                if ( LOG.isTraceEnabled() ) {
-                    LOG.trace("onLoadAnyway: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
-                            bitmap, ctx, key);
+                if (null!=reactor) {
+                    reactor.onBitmapCached(ctx, bitmap, true);
                 }
-                reactor.onBitmapCached(ctx, bitmap, true);
             }
             catch (Exception e) {
                 LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
@@ -530,6 +516,112 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
                 LOG.trace("trySaveToDisk: save ctx({})/key({})'s bitmap({}) to disk succeed", 
                         ctx, key, bitmap);
             }
+        }
+    }
+    
+    /**
+     * @param ctx
+     * @param key
+     * @param reactor
+     * @param bitmap
+     */
+    private void safeNotifyOnLoadFromMemory(
+            final Object ctx,
+            final String key, 
+            final BitmapInMemoryReactor<Object> reactor,
+            final CompositeBitmap bitmap) {
+        try {
+            if ( null != reactor) {
+                reactor.onLoadFromMemoryResult(ctx, bitmap);
+            }
+        }
+        catch (Exception e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapInMemoryReactor.onLoadFromMemoryResult, detail:{}", 
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+    }
+    
+    /**
+     * @param ctx
+     * @param key
+     * @param reactor
+     * @param bitmap
+     * @param inMemoryCache
+     */
+    private void safeNotifyOnLoadFromCache(
+            final Object ctx,
+            final String key, 
+            final BitmapInCacheReactor<Object> reactor,
+            final CompositeBitmap bitmap, 
+            final boolean inMemoryCache) {
+        try {
+            if ( null != reactor ) {
+                reactor.onLoadFromCacheResult(ctx, bitmap, inMemoryCache);
+            }
+        }
+        catch (Throwable e) {
+            LOG.warn("exception when BitmapInCacheReactor.onLoadFromCacheResult for ctx({})/key({}), detail:{}",
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+    }
+    
+    /**
+     * 
+     */
+    private void safeNotifyOnStartDownload(
+            final Object ctx,
+            final String key,
+            final BitmapReactor<Object> reactor) {
+        try {
+            if (null!=reactor) {
+                reactor.onStartDownload(ctx);
+            }
+        }
+        catch (Exception e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartDownload, detail:{}", 
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+    }
+    
+    /**
+     * @param ctx
+     * @param key
+     * @param reactor
+     * @param bitmap
+     */
+    private void safeNotifyOnBitmapCached(
+            final Object ctx, 
+            final String key,
+            final BitmapReactor<Object> reactor, 
+            final CompositeBitmap bitmap) {
+        try {
+            if (null!= reactor) {
+                reactor.onBitmapCached(ctx, bitmap, false);
+            }
+        }
+        catch (Throwable e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapCached, detail:{}", 
+                    ctx, key, ExceptionUtils.exception2detail(e));
+        }
+    }
+
+    /**
+     * @param ctx
+     * @param key
+     * @param reactor
+     */
+    private void safeNotifyOnStartLoadFromDisk(
+            final Object ctx,
+            final String key, 
+            final BitmapReactor<Object> reactor) {
+        try {
+            if ( null != reactor ) {
+                reactor.onStartLoadFromDisk(ctx);
+            }
+        }
+        catch (Throwable e) {
+            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onStartLoadFromDisk, detail:{}", 
+                    ctx, key, ExceptionUtils.exception2detail(e));
         }
     }
     
