@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jocean.android.bitmap.BitmapTrash.RecyclePolicy;
 import org.jocean.idiom.AbstractReferenceCounted;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.Propertyable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -285,7 +286,29 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
         opts.inSampleSize = 1;
         opts.inScaled = false;
         opts.inPreferredConfig = config;
-        final Bitmap decoded = BitmapFactory.decodeStream(is, null, opts);
+        
+        Bitmap decoded = null;
+        
+        try {
+            is.mark(0);
+            decoded = BitmapFactory.decodeStream(is, null, opts);
+        }
+        catch (IllegalArgumentException e) {
+            //  If the decode operation cannot use this bitmap, the decode method will return null and will throw an IllegalArgumentException. 
+            //  The current implementation necessitates that the reused bitmap be mutable, and the resulting reused bitmap will continue to 
+            //  remain mutable even when decoding a resource which would normally result in an immutable bitmap.
+            LOG.warn("exception when BitmapFactory.decodeStream try to reuse bitmap, detail:{}",
+                    ExceptionUtils.exception2detail(e));
+            opts.inBitmap = null;
+            try {
+                is.reset();
+                decoded = BitmapFactory.decodeStream(is, null, opts);
+            }
+            catch (Throwable e1) {
+                LOG.warn("exception when re-BitmapFactory.decodeStream, detail:{}",
+                        ExceptionUtils.exception2detail(e1));
+            }
+        }
         if ( null != decoded ) {
             if (decoded == reuse) {
                 if (LOG.isTraceEnabled()) {
@@ -305,8 +328,10 @@ public class CompositeBitmap extends AbstractReferenceCounted<CompositeBitmap>
             return new CompositeBitmap(decoded, toinit);
         }
         else {
-            // TODO, decoded is null, try re-decode again without reuse
-            //  ...
+            if ( null != reuse ){
+                // just recycle reuse bitmap again
+                _TRASH.recycle(reuse);
+            }
             return null;
         }
     }
