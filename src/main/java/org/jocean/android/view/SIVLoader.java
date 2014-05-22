@@ -165,7 +165,9 @@ public class SIVLoader {
                                 final Map<String, Object> propertiesToInit) throws Exception {
                             propertiesToInit.put(_PROPERTY_SOURCE_URI, uri.toASCIIString());
                         }},
-                    new TransactionPolicy().priority(-1) );
+                    new TransactionPolicy()
+                        .priority(-1)
+                        .maxRetryCount(1) );
             return transaction;
         } catch (URISyntaxException e) {
             LOG.error("invalid url:{}", url);
