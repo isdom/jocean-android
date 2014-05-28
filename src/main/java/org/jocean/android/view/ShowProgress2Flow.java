@@ -68,10 +68,26 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
             .handler(selfInvoker("onBitmapReceived"))
 			.freeze();
 
-    public void setRadioRate(final float radioRate) {
-        this._radioRate = radioRate;
+    public void setRadioRatio(final float ratio) {
+        this._radioRatio = ratio;
     }
 
+    public void setLeftPaddingRatio(final float ratio) {
+        this._leftPaddingRatio = ratio;
+    }
+    
+    public void setRightPaddingRatio(final float ratio) {
+        this._rightPaddingRatio = ratio;
+    }
+    
+    public void setTopPaddingRatio(final float ratio) {
+        this._topPaddingRatio = ratio;
+    }
+    
+    public void setBottomPaddingRatio(final float ratio) {
+        this._bottomPaddingRatio = ratio;
+    }
+    
 	public DelayEvent generateProgressEvent(
 	        final BizStep templateBizStep, 
 	        final View view) {
@@ -84,9 +100,16 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 	
     private void drawCircleProgress(final View view, final Canvas canvas, final float rotateDegrees) {
         
-        final int centerx = view.getWidth() / 2;
-        final int centery = view.getHeight() / 2;
-        final int radios = (int)(Math.min(centerx, centery) * this._radioRate);
+        final int leftPadding = (int)(this._leftPaddingRatio * view.getWidth());
+        final int rightPadding = (int)(this._rightPaddingRatio * view.getWidth());
+        final int topPadding = (int)(this._topPaddingRatio * view.getHeight());
+        final int bottomPadding = (int)(this._bottomPaddingRatio * view.getHeight());
+        
+        final int halfWidth = (view.getWidth() - leftPadding - rightPadding) / 2;
+        final int centerx = halfWidth + leftPadding;
+        final int halfHeight = (view.getHeight() - topPadding - bottomPadding) / 2;
+        final int centery = halfHeight + topPadding;
+        final int radios = (int)(Math.min(halfWidth, halfHeight) * this._radioRatio);
         
         // 绘制圆环
         this._paint.setStyle(Paint.Style.STROKE); // 绘制空心圆
@@ -203,12 +226,12 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 	private BizStep onDrawOnProgress(final View view, final Canvas canvas) {
 		
 		final long max = Math.max(this._contentLength, this._progress);
-		if ( LOG.isTraceEnabled()) {
-		    LOG.trace("draw uri {} progress with {}/{}", this._uri, this._progress, this._contentLength); 
-		}
 
 		this._downloadProgressDrawer.setMax((int)max);
 		this._downloadProgressDrawer.setProgress((int)this._progress);
+		this._downloadProgressDrawer.setPaddingTop(this._topPaddingRatio);
+        this._downloadProgressDrawer.setPaddingBottom(this._bottomPaddingRatio);
+		
 		this._downloadProgressDrawer.drawOnView(view, canvas);
 		
 		return this.currentEventHandler();
@@ -236,7 +259,11 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 	private long _progress = 0;
 //	private final boolean drawTextByOffCanvas = false; //(android.os.Build.VERSION.SDK_INT >= 11);
 	private final NumberProgressDrawer _downloadProgressDrawer;
-	private float _radioRate = 0.2f;
+	private float _radioRatio = 0.2f;
+	private float _bottomPaddingRatio = 0;
+    private float _topPaddingRatio = 0;
+    private float _leftPaddingRatio = 0;
+    private float _rightPaddingRatio = 0;
 	
     private float _rotateDegrees;
 	private final Context _context;
