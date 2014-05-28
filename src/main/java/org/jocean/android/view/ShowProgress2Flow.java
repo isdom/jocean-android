@@ -17,9 +17,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.RectF;
 import android.graphics.SweepGradient;
-import android.graphics.Typeface;
 import android.view.View;
 
 /**
@@ -63,7 +61,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 			.freeze();
 
 	private final BizStep RECVCONTENT = new BizStep("showprogress2.RECVCONTENT")
-            .handler(selfInvoker("onDrawAsCircleProgress"))
+            .handler(selfInvoker("onDrawOnProgress"))
 	        .handler(selfInvoker("onRepeatProgress"))
             .handler(selfInvoker("onTransportInactived"))
 			.handler(selfInvoker("onTransactionFailure"))
@@ -82,9 +80,9 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 	
     private void drawCircleProgress(final View view, final Canvas canvas, final float rotateDegrees) {
         
-        int centerx = view.getWidth() / 2;
-        int centery = view.getHeight() / 2;
-        int radios = Math.min(centerx, centery) / 3;
+        final int centerx = view.getWidth() / 2;
+        final int centery = view.getHeight() / 2;
+        final int radios = Math.min(centerx, centery) / 3;
         
         // 绘制圆环
         this._paint.setStyle(Paint.Style.STROKE); // 绘制空心圆
@@ -180,37 +178,13 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         return changeToBizStepOf(this.STARTDOWNLOADING, view);
     }
     
-//	private void drawText(
-//	        final Canvas canvas, final String text, final float x, final int y,
-//            final Paint paint) {
-//	    if ( !this.drawTextByOffCanvas ) {
-//	        canvas.drawText(text, x, y, paint);
-//	    }
-//    }
-
-    @OnEvent(event = "drawOnView")
-	private BizStep onDrawOnNONProgress(final View view, final Canvas canvas) {
-		
-		int center = view.getWidth() / 2;
-		int radios = center / 4;
-        int cy = view.getHeight() / 2;
-
-		// 绘制圆环
-        this._paint.setStyle(Paint.Style.STROKE); // 绘制空心圆
-        //this.paint.setColor(Color.RED);
-        this._paint.setStrokeWidth(dip2px(this._context, 5));
-        this._paint.setShader(new SweepGradient(center, cy, 0, 0x1E90FF));
-        canvas.drawCircle(center, center, radios, this._paint);
-
-		return this.currentEventHandler();
-	}
-	
 	@OnEvent(event = "onProgress")
 	private BizStep onFirstProgress(final View view, final long currentByteSize, final long totalByteSize) {
+        this.popAndCancelDealyEvents();
 		this._progress = currentByteSize;
 		this._contentLength = totalByteSize;
 		view.invalidate();
-		return changeToBizStepOf(this.RECVCONTENT, view);
+		return this.RECVCONTENT;
 	}
 
     @OnEvent(event = "onProgress")
@@ -221,42 +195,20 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         return this.currentEventHandler();
     }
     
-//	@OnEvent(event = "drawOnView")
-//	private BizStep onDrawOnProgress(final View view, final Canvas canvas) {
-//		
-//		final long max = Math.max(this._contentLength, this._progress);
-//		LOG.info("draw uri {} progress with {}/{}", new Object[]{ this._uri, this._progress, this._contentLength}); 
-//		
-//
-//		int center = view.getWidth() / 2;
-//		int radios = center / 4;
-//
-//		// 绘制圆环
-//		this._paint.setStyle(Paint.Style.STROKE); // 绘制空心圆
-//		this._paint.setColor(ringColor);
-//		this._paint.setStrokeWidth(ringWidth);
-//		canvas.drawCircle(center, center, radios, this._paint);
-//
-//		// draw arc
-//		final RectF oval = new RectF(center - radios, center - radios, center
-//				+ radios, center + radios);
-//
-//		this._paint.setColor(progressColor);
-//		canvas.drawArc(oval, 90, 360 * this._progress / max, false, _paint);
-//
-//		// display _progress %
-//		this._paint.setStyle(Paint.Style.FILL);
-//		this._paint.setColor(textColor);
-//		this._paint.setStrokeWidth(0);
-//		this._paint.setTextSize(textSize);
-//		this._paint.setTypeface(Typeface.DEFAULT_BOLD);
-//		textProgress = (int) (1000 * (this._progress / (10.0 * max))) + "%";
-//		float textWidth = _paint.measureText(textProgress);
-//        drawText(canvas, textProgress, center - textWidth / 2, center + textSize
-//                / 2, _paint);
-//		
-//		return this.currentEventHandler();
-//	}
+	@OnEvent(event = "drawOnView")
+	private BizStep onDrawOnProgress(final View view, final Canvas canvas) {
+		
+		final long max = Math.max(this._contentLength, this._progress);
+		if ( LOG.isTraceEnabled()) {
+		    LOG.trace("draw uri {} progress with {}/{}", this._uri, this._progress, this._contentLength); 
+		}
+
+		this._downloadProgressDrawer.setMax((int)max);
+		this._downloadProgressDrawer.setProgress((int)this._progress);
+		this._downloadProgressDrawer.drawOnView(view, canvas);
+		
+		return this.currentEventHandler();
+	}
 	
     /**
      * 根据手机的分辨率从 dp 的单位 转成为 px(像素)
@@ -272,12 +224,14 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 		this._paint.setAntiAlias(true); // 消除锯齿
 		this._interval = interval;
 		this._deltaDegree = deltaDegree;
+		this._downloadProgressDrawer = new NumberProgressDrawer(context);
 	}
 
 	private final URI _uri;
 	private long _contentLength = -1;
 	private long _progress = 0;
-	private final boolean drawTextByOffCanvas = false; //(android.os.Build.VERSION.SDK_INT >= 11);
+//	private final boolean drawTextByOffCanvas = false; //(android.os.Build.VERSION.SDK_INT >= 11);
+	private final NumberProgressDrawer _downloadProgressDrawer;
 	
     private float _rotateDegrees;
 	private final Context _context;
