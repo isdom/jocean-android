@@ -68,6 +68,10 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
             .handler(selfInvoker("onBitmapReceived"))
 			.freeze();
 
+    public void setRadioRate(final float radioRate) {
+        this._radioRate = radioRate;
+    }
+
 	public DelayEvent generateProgressEvent(
 	        final BizStep templateBizStep, 
 	        final View view) {
@@ -82,7 +86,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         
         final int centerx = view.getWidth() / 2;
         final int centery = view.getHeight() / 2;
-        final int radios = Math.min(centerx, centery) / 3;
+        final int radios = (int)(Math.min(centerx, centery) * this._radioRate);
         
         // 绘制圆环
         this._paint.setStyle(Paint.Style.STROKE); // 绘制空心圆
@@ -232,6 +236,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 	private long _progress = 0;
 //	private final boolean drawTextByOffCanvas = false; //(android.os.Build.VERSION.SDK_INT >= 11);
 	private final NumberProgressDrawer _downloadProgressDrawer;
+	private float _radioRate = 0.2f;
 	
     private float _rotateDegrees;
 	private final Context _context;
