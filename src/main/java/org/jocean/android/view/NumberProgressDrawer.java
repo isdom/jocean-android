@@ -135,7 +135,9 @@ public class NumberProgressDrawer implements DrawerOnView {
 
     private boolean mDrawReachedBar = true;
 
-    private boolean mIfDrawText = true;
+    private boolean mIfDrawText = false;
+    
+    private float mPadding = 0.1f;
 
     public enum ProgressTextVisibility{
         Visible,Invisible
@@ -205,15 +207,47 @@ public class NumberProgressDrawer implements DrawerOnView {
 
 
     private void calculateDrawRectFWithoutProgressText(final View view) {
-        mReachedRectF.left = view.getPaddingLeft();
-        mReachedRectF.top = view.getHeight()/2.0f - mReachedBarHeight / 2.0f;
-        mReachedRectF.right = (view.getWidth() - view.getPaddingLeft() - view.getPaddingRight() )/(getMax()*1.0f) * getProgress() + view.getPaddingLeft();
-        mReachedRectF.bottom = view.getHeight()/2.0f + mReachedBarHeight / 2.0f;
+        mReachedRectF.left = getPaddingLeft(view);
+        mReachedRectF.top = getDrawAreaHeight(view)/2.0f - mReachedBarHeight / 2.0f;
+        mReachedRectF.right = (getDrawAreaWidth(view) - getPaddingLeft(view) - getPaddingRight(view) )/(getMax()*1.0f) * getProgress() + getPaddingLeft(view);
+        mReachedRectF.bottom = getDrawAreaHeight(view)/2.0f + mReachedBarHeight / 2.0f;
 
         mUnreachedRectF.left = mReachedRectF.right;
-        mUnreachedRectF.right = view.getWidth() - view.getPaddingRight();
-        mUnreachedRectF.top = view.getHeight()/2.0f +  - mUnreachedBarHeight / 2.0f;
-        mUnreachedRectF.bottom = view.getHeight()/2.0f  + mUnreachedBarHeight / 2.0f;
+        mUnreachedRectF.right = getDrawAreaWidth(view) - getPaddingRight(view);
+        mUnreachedRectF.top = getDrawAreaHeight(view)/2.0f +  - mUnreachedBarHeight / 2.0f;
+        mUnreachedRectF.bottom = getDrawAreaHeight(view)/2.0f  + mUnreachedBarHeight / 2.0f;
+    }
+
+    /**
+     * @param view
+     * @return
+     */
+    private int getDrawAreaWidth(final View view) {
+        return view.getWidth();
+    }
+
+    /**
+     * @param view
+     * @return
+     */
+    private int getDrawAreaHeight(final View view) {
+        return view.getHeight();
+    }
+
+    /**
+     * @param view
+     * @return
+     */
+    private int getPaddingRight(final View view) {
+        return view.getPaddingRight() + (int)(getDrawAreaWidth(view) * mPadding);
+    }
+
+    /**
+     * @param view
+     * @return
+     */
+    private int getPaddingLeft(final View view) {
+        return view.getPaddingLeft() + (int)(getDrawAreaWidth(view) * mPadding);
     }
 
     private void calculateDrawRectF(final View view) {
@@ -223,32 +257,32 @@ public class NumberProgressDrawer implements DrawerOnView {
 
         if(getProgress() == 0){
             mDrawReachedBar = false;
-            mDrawTextStart = view.getPaddingLeft();
+            mDrawTextStart = getPaddingLeft(view);
         }else{
             mDrawReachedBar = true;
-            mReachedRectF.left = view.getPaddingLeft();
-            mReachedRectF.top = view.getHeight()/2.0f - mReachedBarHeight / 2.0f;
-            mReachedRectF.right = (view.getWidth() - view.getPaddingLeft() - view.getPaddingRight() )/(getMax()*1.0f) * getProgress() - mOffset + view.getPaddingLeft();
-            mReachedRectF.bottom = view.getHeight()/2.0f + mReachedBarHeight / 2.0f;
+            mReachedRectF.left = getPaddingLeft(view);
+            mReachedRectF.top = getDrawAreaHeight(view)/2.0f - mReachedBarHeight / 2.0f;
+            mReachedRectF.right = (getDrawAreaWidth(view) - getPaddingLeft(view) - getPaddingRight(view) )/(getMax()*1.0f) * getProgress() - mOffset + getPaddingLeft(view);
+            mReachedRectF.bottom = getDrawAreaHeight(view)/2.0f + mReachedBarHeight / 2.0f;
             mDrawTextStart = (mReachedRectF.right + mOffset);
         }
 
-        mDrawTextEnd =  (int) ((view.getHeight() / 2.0f) - ((mTextPaint.descent() + mTextPaint.ascent()) / 2.0f)) ;
+        mDrawTextEnd =  (int) ((getDrawAreaHeight(view) / 2.0f) - ((mTextPaint.descent() + mTextPaint.ascent()) / 2.0f)) ;
 
-        if((mDrawTextStart + mDrawTextWidth )>= view.getWidth() - view.getPaddingRight()){
-            mDrawTextStart = view.getWidth() - view.getPaddingRight() - mDrawTextWidth;
+        if((mDrawTextStart + mDrawTextWidth )>= getDrawAreaWidth(view) - getPaddingRight(view)){
+            mDrawTextStart = getDrawAreaWidth(view) - getPaddingRight(view) - mDrawTextWidth;
             mReachedRectF.right = mDrawTextStart - mOffset;
         }
 
         float unreachedBarStart = mDrawTextStart + mDrawTextWidth + mOffset;
-        if(unreachedBarStart >= view.getWidth() - view.getPaddingRight()){
+        if(unreachedBarStart >= getDrawAreaWidth(view) - getPaddingRight(view)){
             mDrawUnreachedBar = false;
         }else{
             mDrawUnreachedBar = true;
             mUnreachedRectF.left = unreachedBarStart;
-            mUnreachedRectF.right = view.getWidth() - view.getPaddingRight();
-            mUnreachedRectF.top = view.getHeight()/2.0f +  - mUnreachedBarHeight / 2.0f;
-            mUnreachedRectF.bottom = view.getHeight()/2.0f  + mUnreachedBarHeight / 2.0f;
+            mUnreachedRectF.right = getDrawAreaWidth(view) - getPaddingRight(view);
+            mUnreachedRectF.top = getDrawAreaHeight(view)/2.0f +  - mUnreachedBarHeight / 2.0f;
+            mUnreachedRectF.bottom = getDrawAreaHeight(view)/2.0f  + mUnreachedBarHeight / 2.0f;
         }
     }
     /**
@@ -313,6 +347,10 @@ public class NumberProgressDrawer implements DrawerOnView {
         mReachedBarPaint.setColor(mReachedBarColor);
     }
 
+    public void setPadding(final float padding) {
+        mPadding = padding;
+    }
+    
     public void setMax(int Max) {
         if(Max > 0){
             this.mMax = Max;
