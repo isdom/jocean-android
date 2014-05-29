@@ -91,6 +91,10 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         this._bottomPaddingRatio = ratio;
     }
     
+    public void fireAndPush(final DelayEvent delayEvent) {
+        this.fireDelayEventAndAddTo(delayEvent, this._timers);
+    }
+    
 	public DelayEvent generateProgressEvent(
 	        final BizStep templateBizStep, 
 	        final View view) {
