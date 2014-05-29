@@ -4,12 +4,15 @@
 package org.jocean.android.view;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.jocean.android.bitmap.CompositeBitmap;
 import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.BizStep;
 import org.jocean.event.api.DelayEvent;
 import org.jocean.event.api.annotation.OnEvent;
+import org.jocean.idiom.Detachable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,15 +144,15 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
             final BizStep bizStep, 
             final View view) {
         //  remove below line will cause memory leak
-        this.popAndCancelDealyEvents();
+        this.removeAndCancelAllDealyEvents(this._timers);
         this._rotateDegrees += this._deltaDegree;
         view.invalidate();
-        return this.fireDelayEventAndPush( generateProgressEvent(bizStep, view));
+        return this.fireDelayEventAndAddTo( generateProgressEvent(bizStep, view), this._timers);
     }
     
     private BizStep changeToBizStepOf(final BizStep bizStep, final View view) {
-        this.popAndCancelDealyEvents();
-        return  this.fireDelayEventAndPush( generateProgressEvent(bizStep, view));
+        this.removeAndCancelAllDealyEvents(this._timers);
+        return  this.fireDelayEventAndAddTo( generateProgressEvent(bizStep, view),this._timers);
     }
     
 
@@ -171,7 +174,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         if ( LOG.isDebugEnabled() ) {
             LOG.debug("transaction for {} succeed.", this._uri);
         }
-        this.popAndCancelDealyEvents();
+        this.removeAndCancelAllDealyEvents(this._timers);
         return null;
     }
     
@@ -181,7 +184,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 		if ( LOG.isDebugEnabled() ) {
 			LOG.debug("transaction for {} succeed.", this._uri);
 		}
-        this.popAndCancelDealyEvents();
+        this.removeAndCancelAllDealyEvents(this._timers);
 		return null;
 	}
 
@@ -191,7 +194,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
         if ( LOG.isDebugEnabled() ) {
             LOG.debug("transaction for {} failed with status {}.", this._uri, failureReason);
         }
-        this.popAndCancelDealyEvents();
+        this.removeAndCancelAllDealyEvents(this._timers);
         return null;
     }
     
@@ -207,7 +210,7 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
     
 	@OnEvent(event = "onProgress")
 	private BizStep onFirstProgress(final View view, final long currentByteSize, final long totalByteSize) {
-        this.popAndCancelDealyEvents();
+        this.removeAndCancelAllDealyEvents(this._timers);
 		this._progress = currentByteSize;
 		this._contentLength = totalByteSize;
 		view.invalidate();
@@ -254,6 +257,8 @@ public class ShowProgress2Flow extends AbstractFlow<ShowProgress2Flow> {
 		this._downloadProgressDrawer = new NumberProgressDrawer(context);
 	}
 
+	private final List<Detachable> _timers = new ArrayList<Detachable>();
+	
 	private final URI _uri;
 	private long _contentLength = -1;
 	private long _progress = 0;
