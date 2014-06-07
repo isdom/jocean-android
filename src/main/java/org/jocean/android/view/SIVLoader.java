@@ -150,7 +150,14 @@ public class SIVLoader {
         if ( null == view ) {
             return null;
         }
+        
         final String url = SIVHolder.view2url(view);
+        if (null == url) {
+            LOG.warn("SmartImageView:{}'s url is null, ignore this view", 
+                    view);
+            return null;
+        }
+        
         try {
             final URI uri = new URI(url);
             final BitmapTransaction transaction = this._bitmapAgent
@@ -169,10 +176,11 @@ public class SIVLoader {
                         .priority(-1)
                         .maxRetryCount(1) );
             return transaction;
-        } catch (URISyntaxException e) {
-            LOG.error("invalid url:{}", url);
+        } catch (Throwable e) {
+            LOG.error("invalid url:{} of SmartImageView:{}, detail:{}", 
+                    url, view, ExceptionUtils.exception2detail(e));
+            return null;
         }
-        return null;
     }
 
     @SuppressWarnings("unchecked")
