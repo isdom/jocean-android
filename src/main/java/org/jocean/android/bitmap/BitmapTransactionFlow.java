@@ -18,8 +18,6 @@ import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventReceiver;
 import org.jocean.event.api.FlowLifecycleListener;
 import org.jocean.event.api.annotation.OnEvent;
-import org.jocean.idiom.ArgsHandler;
-import org.jocean.idiom.ArgsHandlerSource;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.block.Blob;
 import org.jocean.idiom.block.BlockUtils;
@@ -41,8 +39,7 @@ import com.jakewharton.disklrucache.DiskLruCache.Snapshot;
  * @author isdom
  *
  */
-class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow> 
-    implements ArgsHandlerSource {
+class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(BitmapTransactionFlow.class);
@@ -74,27 +71,238 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
             }} );
     }
 
-    @Override
-    public ArgsHandler getArgsHandler() {
-        return ArgsHandler.Consts._REFCOUNTED_ARGS_GUARD;
-    }
-    
-	public final BizStep WAIT = new BizStep("bitmap.WAIT")
-            .handler(selfInvoker("onLoadFromMemoryOnly"))
-            .handler(selfInvoker("onLoadFromCacheOnly"))
-			.handler(selfInvoker("onLoadAnyway"))
-			.handler(selfInvoker("onDetach"))
-			.freeze();
+	public final BizStep WAIT = new BizStep("bitmap.WAIT") {
+	    @OnEvent(event = "loadFromMemoryOnly")
+	    private BizStep onLoadFromMemoryOnly(
+	            final URI uri,
+	            final Object ctx,
+	            final BitmapInMemoryReactor<Object> reactor) {
+	        final String key = uri.toASCIIString();
+	        
+	        final CompositeBitmap bitmap = _memoryCache.getAndTryRetain(key);
+	        safeNotifyOnLoadFromMemory(ctx, key, reactor, bitmap);
+	        if ( null != bitmap ) {
+	            if ( LOG.isTraceEnabled() ) {
+	                LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
+	                        bitmap, ctx, key);
+	            }
+	            bitmap.release();
+	        }
+	        else {
+	            if ( LOG.isTraceEnabled() ) {
+	                LOG.trace("onLoadFromMemoryOnly: ctx({})/key({})'s bitmap !NOT! in memory cache.", 
+	                        ctx, key);
+	            }
+	        }
+	        return null;
+	    }
+	    
+	    @OnEvent(event = "loadFromCacheOnly")
+	    private BizStep onLoadFromCacheOnly(
+	            final URI uri,
+	            final Object ctx,
+	            final BitmapInCacheReactor<Object> reactor, 
+	            final PropertiesInitializer<Object> initializer) {
+	        final String key = uri.toASCIIString();
+	        CompositeBitmap bitmap = _memoryCache.getAndTryRetain(key);
+	        
+	        final boolean inMemoryCache = ( null != bitmap );
+	        if ( null == bitmap ) {
+	            final String diskCacheKey = Md5.encode(key);
+	            final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
+	            InputStream is = null, bytesIs = null;
+	            if ( null != snapshot ) {
+	                try {
+	                    is = snapshot.getInputStream(0);
+	                    if ( null != is ) {
+	                        bytesIs = BlockUtils.inputStream2BytesListInputStream(is, _bytesPool);
+	                        if ( null != bytesIs ) {
+	                            bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, bytesIs, initializer);
+	                        }
+	                    }
+	                }
+	                finally {
+	                    if ( null != bytesIs ) {
+	                        try {
+	                            bytesIs.close();
+	                        }
+	                        catch (Throwable e) {
+	                        }
+	                    }
+	                    if ( null != is ) {
+	                        try {
+	                            is.close();
+	                        }
+	                        catch (Throwable e) {
+	                        }
+	                    }
+	                    snapshot.close();
+	                }
+	            }
+	        }
+	        
+	        try {
+	            safeNotifyOnLoadFromCache(ctx, key, reactor, bitmap, inMemoryCache);
+	        }
+	        finally {
+	            if ( null != bitmap ) {
+	                bitmap.release();
+	            }
+	        }
+	                
+	        return null;
+	    }
+	    
+	    @OnEvent(event = "loadAnyway")
+	    private BizStep onLoadAnyway(
+	            final URI uri,
+	            final Object ctx,
+	            final BitmapReactor<Object> reactor, 
+	            final PropertiesInitializer<Object> initializer,
+	            final TransactionPolicy policy) 
+	            throws Exception {
+
+	        final String key = uri.toASCIIString();
+	        
+	        if ( tryLoadFromMemoryCache(key, ctx, reactor) ) {
+	            return null;
+	        }
+	        
+	        if ( tryLoadFromDiskCache(key, ctx, reactor, initializer) ) {
+	            return null;
+	        }
+
+	        // try to load from network
+	        _key = key;
+	        _ctx = ctx;
+	        _bitmapReactor = reactor;
+	        _blobTransaction = _blobAgent.createBlobTransaction();
+	        _blobTransaction.start(uri, null, genBlobReactor(), policy);
+	        _propertiesInitializer = initializer;
+	        
+	        safeNotifyOnStartDownload(_ctx, _key, _bitmapReactor);
+	        
+	        return OBTAINING;
+	    }
+
+	}
+    .handler(handlersOf(this)) // for onDetach
+	.freeze();
 	
-	private final BizStep OBTAINING = new BizStep("bitmap.OBTAINING")
-			.handler(selfInvoker("onTransportActived"))
-			.handler(selfInvoker("onTransportInactived"))
-            .handler(selfInvoker("onContentTypeReceived"))
-            .handler(selfInvoker("onProgress"))
-            .handler(selfInvoker("onBlobReceived"))
-            .handler(selfInvoker("onTransactionFailure"))
-			.handler(selfInvoker("onDetach"))
-			.freeze();
+	private final BizStep OBTAINING = new BizStep("bitmap.OBTAINING") {
+	    @OnEvent(event = "onTransportActived")
+	    public BizStep onTransportActived(final Object obj) throws Exception {
+	        try {
+	            if (null!=_bitmapReactor) {
+	                _bitmapReactor.onTransportActived(_ctx);
+	            }
+	        }
+	        catch (Throwable e) {
+	            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportActived, detail:{}", 
+	                    _ctx, _key, ExceptionUtils.exception2detail(e));
+	        }
+	        return currentEventHandler();
+	    }
+	    
+	    @OnEvent(event = "onTransportInactived")
+	    public BizStep onTransportInactived(final Object obj) throws Exception {
+	        try {
+	            if (null!=_bitmapReactor) {
+	                _bitmapReactor.onTransportInactived(_ctx);
+	            }
+	        }
+	        catch (Throwable e) {
+	            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportInactived, detail:{}", 
+	                    _ctx, _key, ExceptionUtils.exception2detail(e));
+	        }
+	        return currentEventHandler();
+	    }
+
+	    @OnEvent(event = "onContentTypeReceived")
+	    public BizStep onContentTypeReceived(final Object obj, final String contentType)
+	            throws Exception {
+	        try {
+	            if (null!=_bitmapReactor) {
+	                _bitmapReactor.onContentTypeReceived(_ctx, contentType);
+	            }
+	        }
+	        catch (Exception e) {
+	            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onContentTypeReceived, detail:{}", 
+	                    _ctx, _key, ExceptionUtils.exception2detail(e));
+	        }
+	        return currentEventHandler();
+	    }
+	    
+	    @OnEvent(event = "onProgress")
+	    public BizStep onProgress(final Object obj, final long currentByteSize, final long totalByteSize)
+	            throws Exception {
+	        try {
+	            if (null!=_bitmapReactor) {
+	                _bitmapReactor.onProgress(_ctx, currentByteSize, totalByteSize);
+	            }
+	        }
+	        catch (Throwable e) {
+	            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onProgress, detail:{}", 
+	                    _ctx, _key, ExceptionUtils.exception2detail(e));
+	        }
+	        return currentEventHandler();
+	    }
+	    
+	    @OnEvent(event = "onBlobReceived")
+	    public BizStep onBlobReceived(final Object obj, final Blob blob) throws Exception {
+	        final InputStream is = blob.genInputStream();
+	        try {
+	            final Map<String, Object> toinit = new HashMap<String, Object>();
+	            safeInitProperties(_ctx, _key, _propertiesInitializer, toinit);
+	            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, _config, toinit);
+	            if ( null != bitmap ) {
+	                try {
+	                    putToMemoryCache(_key, bitmap);
+	                    // save to disk
+	                    trySaveToDisk(_key, _ctx, bitmap);
+	                }
+	                catch (Exception e) {
+	                    LOG.warn("exception when ctx({})/key({})'s bitmap({}) save to disk and put to memorycache, detail:{}", 
+	                            _ctx, _key, bitmap, ExceptionUtils.exception2detail(e));
+	                }
+	                    
+	                final BitmapReactor<Object> reactor = _bitmapReactor;
+	                _bitmapReactor = null;
+	                try {
+	                    if (null!=reactor) {
+	                        reactor.onBitmapReceived(_ctx, bitmap);
+	                    }
+	                }
+	                catch (Exception e) {
+	                    LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapReceived, detail:{}", 
+	                            _ctx, _key, ExceptionUtils.exception2detail(e));
+	                }
+	                finally {
+	                    bitmap.release();
+	                }
+	            }
+	            else {
+	                setFailureReason(BitmapAgent.FAILURE_BITMAP_DECODE_FAILED);
+	                LOG.warn("can't deocde valid bitmap for ctx({})/key({})", _ctx, _key);
+	            }
+	        }
+	        finally {
+	            if ( null != is ) {
+	                is.close();
+	            }
+	        }
+	        return null;
+	    }
+	    
+	    @OnEvent(event = "onTransactionFailure")
+	    public BizStep onTransactionFailure(final Object obj, int failureReason)
+	            throws Exception {
+	        setFailureReason(failureReason);
+	        return null;
+	    }
+	}
+    .handler(handlersOf(this)) // for onDetach
+    .freeze();
 
 	@OnEvent(event="detach")
 	private BizStep onDetach() throws Exception {
@@ -105,120 +313,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
 		this._bitmapReactor = null;
 		return null;
 	}
-
-    @OnEvent(event = "loadFromMemoryOnly")
-    private BizStep onLoadFromMemoryOnly(
-            final URI uri,
-            final Object ctx,
-            final BitmapInMemoryReactor<Object> reactor) {
-        final String key = uri.toASCIIString();
-        
-        final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
-        safeNotifyOnLoadFromMemory(ctx, key, reactor, bitmap);
-        if ( null != bitmap ) {
-            if ( LOG.isTraceEnabled() ) {
-                LOG.trace("onLoadFromMemoryOnly: load CompositeBitmap({}) from memory cache for ctx({})/key({}) succeed.", 
-                        bitmap, ctx, key);
-            }
-            bitmap.release();
-        }
-        else {
-            if ( LOG.isTraceEnabled() ) {
-                LOG.trace("onLoadFromMemoryOnly: ctx({})/key({})'s bitmap !NOT! in memory cache.", 
-                        ctx, key);
-            }
-        }
-        return null;
-	}
-
-    @OnEvent(event = "loadFromCacheOnly")
-    private BizStep onLoadFromCacheOnly(
-            final URI uri,
-            final Object ctx,
-            final BitmapInCacheReactor<Object> reactor, 
-            final PropertiesInitializer<Object> initializer) {
-        final String key = uri.toASCIIString();
-        CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
-        
-        final boolean inMemoryCache = ( null != bitmap );
-        if ( null == bitmap ) {
-            final String diskCacheKey = Md5.encode(key);
-            final Snapshot snapshot = getSnapshotFromDiskCache(diskCacheKey);
-            InputStream is = null, bytesIs = null;
-            if ( null != snapshot ) {
-                try {
-                    is = snapshot.getInputStream(0);
-                    if ( null != is ) {
-                        bytesIs = BlockUtils.inputStream2BytesListInputStream(is, this._bytesPool);
-                        if ( null != bytesIs ) {
-                            bitmap = tryRetainFromDiskCache(key, diskCacheKey, ctx, bytesIs, initializer);
-                        }
-                    }
-                }
-                finally {
-                    if ( null != bytesIs ) {
-                        try {
-                            bytesIs.close();
-                        }
-                        catch (Throwable e) {
-                        }
-                    }
-                    if ( null != is ) {
-                        try {
-                            is.close();
-                        }
-                        catch (Throwable e) {
-                        }
-                    }
-                    snapshot.close();
-                }
-            }
-        }
-        
-        try {
-            safeNotifyOnLoadFromCache(ctx, key, reactor, bitmap, inMemoryCache);
-        }
-        finally {
-            if ( null != bitmap ) {
-                bitmap.release();
-            }
-        }
-                
-        return null;
-    }
     
-    @OnEvent(event = "loadAnyway")
-	private BizStep onLoadAnyway(
-	        final URI uri,
-            final Object ctx,
-            final BitmapReactor<Object> reactor, 
-            final PropertiesInitializer<Object> initializer,
-	        final TransactionPolicy policy) 
-            throws Exception {
-
-        final String key = uri.toASCIIString();
-        
-        if ( tryLoadFromMemoryCache(key, ctx, reactor) ) {
-            return null;
-        }
-        
-        if ( tryLoadFromDiskCache(key, ctx, reactor, initializer) ) {
-            return null;
-        }
-
-        // try to load from network
-        this._key = key;
-        this._ctx = ctx;
-        this._bitmapReactor = reactor;
-        this._blobTransaction = this._blobAgent.createBlobTransaction();
-        this._blobTransaction.start(uri, null, genBlobReactor(), policy);
-        this._propertiesInitializer = initializer;
-        
-        safeNotifyOnStartDownload(this._ctx, this._key, this._bitmapReactor);
-        
-		return OBTAINING;
-	}
-
     @SuppressWarnings("unchecked")
     private BlobReactor<Object> genBlobReactor() {
         return (BlobReactor<Object>)this.queryInterfaceInstance(BlobReactor.class);
@@ -284,116 +379,10 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         return false;
     }
 
-    @OnEvent(event = "onTransportActived")
-    public BizStep onTransportActived(final Object obj) throws Exception {
-        try {
-            if (null!=this._bitmapReactor) {
-                this._bitmapReactor.onTransportActived(this._ctx);
-            }
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportActived, detail:{}", 
-                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
-        }
-        return this.currentEventHandler();
-    }
 
-    @OnEvent(event = "onTransportInactived")
-    public BizStep onTransportInactived(final Object obj) throws Exception {
-        try {
-            if (null!=this._bitmapReactor) {
-                this._bitmapReactor.onTransportInactived(this._ctx);
-            }
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onTransportInactived, detail:{}", 
-                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
-        }
-        return this.currentEventHandler();
-    }
 
-    @OnEvent(event = "onContentTypeReceived")
-    public BizStep onContentTypeReceived(final Object obj, final String contentType)
-            throws Exception {
-        try {
-            if (null!=this._bitmapReactor) {
-                this._bitmapReactor.onContentTypeReceived(this._ctx, contentType);
-            }
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onContentTypeReceived, detail:{}", 
-                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
-        }
-        return this.currentEventHandler();
-    }
 
-    @OnEvent(event = "onProgress")
-    public BizStep onProgress(final Object obj, final long currentByteSize, final long totalByteSize)
-            throws Exception {
-        try {
-            if (null!=this._bitmapReactor) {
-                this._bitmapReactor.onProgress(this._ctx, currentByteSize, totalByteSize);
-            }
-        }
-        catch (Exception e) {
-            LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onProgress, detail:{}", 
-                    this._ctx, this._key, ExceptionUtils.exception2detail(e));
-        }
-        return this.currentEventHandler();
-    }
 
-    @OnEvent(event = "onBlobReceived")
-    public BizStep onBlobReceived(final Object obj, final Blob blob) throws Exception {
-        final InputStream is = blob.genInputStream();
-        try {
-            final Map<String, Object> toinit = new HashMap<String, Object>();
-            safeInitProperties(this._ctx, this._key, this._propertiesInitializer, toinit);
-            final CompositeBitmap bitmap = CompositeBitmap.decodeFrom(is, this._config, toinit);
-            if ( null != bitmap ) {
-                try {
-                    putToMemoryCache(this._key, bitmap);
-                    // save to disk
-                    trySaveToDisk(this._key, this._ctx, bitmap);
-                }
-                catch (Exception e) {
-                    LOG.warn("exception when ctx({})/key({})'s bitmap({}) save to disk and put to memorycache, detail:{}", 
-                            this._ctx, this._key, bitmap, ExceptionUtils.exception2detail(e));
-                }
-                    
-                final BitmapReactor<Object> reactor = this._bitmapReactor;
-                this._bitmapReactor = null;
-                try {
-                    if (null!=reactor) {
-                        reactor.onBitmapReceived(this._ctx, bitmap);
-                    }
-                }
-                catch (Exception e) {
-                    LOG.warn("exception when ctx({})/key({})'s BitmapReactor.onBitmapReceived, detail:{}", 
-                            this._ctx, this._key, ExceptionUtils.exception2detail(e));
-                }
-                finally {
-                    bitmap.release();
-                }
-            }
-            else {
-                this.setFailureReason(BitmapAgent.FAILURE_BITMAP_DECODE_FAILED);
-                LOG.warn("can't deocde valid bitmap for ctx({})/key({})", this._ctx, this._key);
-            }
-        }
-        finally {
-            if ( null != is ) {
-                is.close();
-            }
-        }
-        return null;
-    }
-
-    @OnEvent(event = "onTransactionFailure")
-    public BizStep onTransactionFailure(final Object obj, int failureReason)
-            throws Exception {
-        this.setFailureReason(failureReason);
-        return null;
-    }
     
     /**
      * @param ctx
@@ -407,7 +396,7 @@ class BitmapTransactionFlow extends AbstractFlow<BitmapTransactionFlow>
         final CompositeBitmap bitmap = this._memoryCache.getAndTryRetain(key);
         if ( null != bitmap ) {
             if ( LOG.isTraceEnabled() ) {
-                LOG.trace("onLoadAnyway: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
+                LOG.trace("tryLoadFromMemoryCache: load CompositeBitmap({}) from memory cache for ctx({})/key({})", 
                         bitmap, ctx, key);
             }
             try {
