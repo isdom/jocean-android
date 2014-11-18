@@ -16,17 +16,16 @@ public class ReferenceCountedCache<K, V extends ReferenceCounted<? extends V>> {
         public int sizeOf(K key, V value);
     }
     
-    private static final SizeOf<Object, Object> SIZEOF_COUNT = new SizeOf<Object, Object>() {
-        @Override
-        public int sizeOf(Object key, Object value) {
-            return 1;
-        }
-    };
-    
     private final static class LruCacheImpl<K, V extends ReferenceCounted<? extends V>> 
         extends LruCache<K, V> {
+        
+        private final SizeOf<K, V> SIZEOF_COUNT = new SizeOf<K, V>() {
+            @Override
+            public int sizeOf(final K key, final V value) {
+                return 1;
+            }
+        };
 
-        @SuppressWarnings("unchecked")
         public LruCacheImpl(final int maxSize, final SizeOf<K, V> sizeOf) {
             super(maxSize);
             this._sizeOf = ( null != sizeOf ? sizeOf : (SizeOf<K, V>)SIZEOF_COUNT);
