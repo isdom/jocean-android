@@ -26,7 +26,7 @@ public interface BitmapAgent {
         public static final String PERSIST_FILENAME = "_persist_filename";
     }
     
-    // define fromo 100
+    // define from 100
     public static final int FAILURE_BITMAP_DECODE_FAILED = 100;
     
     public interface PropertiesInitializer<CTX> extends Visitor2<CTX, Map<String, Object>> {
